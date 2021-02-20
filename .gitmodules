@@ -1,0 +1,6 @@
+[submodule "3rd-party/pybind11"]
+	path = 3rd-party/pybind11
+	url = git@github.com:pybind/pybind11.git
+[submodule "3rd-party/Eigen"]
+	path = 3rd-party/Eigen
+	url = git@gitlab.com:libeigen/eigen.git
