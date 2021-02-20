@@ -3,35 +3,89 @@
 #include "cpu/image_proc.h"
 #include "cpu/graph_proc.h"
 
+#ifndef TORCH_EXTENSION_NAME
+#define TORCH_EXTENSION_NAME nnrt
+#endif
+
+using namespace pybind11::literals;
+
+
+int add(int i, int j) {
+	return i + j;
+}
+
 // Definitions of all methods in the module.
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
-  m.def("compute_augmented_flow_from_rotation", 
-        &image_proc::compute_augmented_flow_from_rotation, 
-        "Computes an optical flow image that reflects the augmentation applied to the source and target images.");
-  
-  m.def("count_tp1", &image_proc::count_tp1, "");
-  m.def("count_tp2", &image_proc::count_tp2, "");
-  m.def("count_tp3", &image_proc::count_tp3, "");
+	m.def("compute_augmented_flow_from_rotation",
+	      &image_proc::compute_augmented_flow_from_rotation,
+	      "flow_image_rot_sa2so"_a, "flow_image_so2to"_a, "flow_image_rot_to2ta"_a, "height"_a, "width"_a,
+	      "Computes an optical flow image that reflects the augmentation applied to the source and target images.");
 
-  m.def("extend3", &image_proc::extend3, "");
+	//TODO: define what the hell this is and what it's supposed to do or remove if it's garbage
+	m.def("count_tp1", &image_proc::count_tp1, "");
+	m.def("count_tp2", &image_proc::count_tp2, "");
+	m.def("count_tp3", &image_proc::count_tp3, "");
 
-  m.def("backproject_depth_ushort", &image_proc::backproject_depth_ushort, "Backproject depth image into 3D points");
-  m.def("backproject_depth_float", &image_proc::backproject_depth_float, "Backproject depth image into 3D points");
-  m.def("compute_mesh_from_depth", &image_proc::compute_mesh_from_depth, "Computes a mesh using backprojected points and pixel connectivity");
-  m.def("compute_mesh_from_depth_and_color", &image_proc::compute_mesh_from_depth_and_color, "Computes a mesh using backprojected points and pixel connectivity. Additionally, extracts colors for each vertex");
-  m.def("filter_depth", &image_proc::filter_depth, "Executes median filter on depth image");
+	//TODO: define what the hell this is and what it's supposed to do or remove if it's garbage
+	m.def("extend3", &image_proc::extend3, "");
 
-  m.def("warp_flow", &image_proc::warp_flow, "Warps image using provided 2D flow (inside masked region)");
-  m.def("warp_rigid", &image_proc::warp_rigid, "Warps image using provided depth map and rigid pose");
-  m.def("warp_3d", &image_proc::warp_3d, "Warps image using provided warped point cloud");
 
-  m.def("erode_mesh", &graph_proc::erode_mesh, "Erode mesh");
-  m.def("sample_nodes", &graph_proc::sample_nodes, "Samples graph nodes that cover given vertices");
-  m.def("compute_edges_geodesic", &graph_proc::compute_edges_geodesic, "Computes geodesic edges between given graph nodes");
-  m.def("compute_edges_euclidean", &graph_proc::compute_edges_euclidean, "Computes Euclidean edges between given graph nodes");
-  m.def("compute_pixel_anchors_geodesic", &graph_proc::compute_pixel_anchors_geodesic, "Computes anchor ids and skinning weights for every pixel using graph connectivity");
-  m.def("compute_pixel_anchors_euclidean", &graph_proc::compute_pixel_anchors_euclidean, "Computes anchor ids and skinning weights for every pixel using Euclidean distances");
-  
-  m.def("construct_regular_graph", &graph_proc::construct_regular_graph, "Samples graph uniformly in pixel space, and computes pixel anchors");
+	//[image] --> [ordered point cloud (point image)] and [point image] --> [mesh (vertex positions, vertex colors, face vertex indices)]
+
+	m.def("backproject_depth_ushort", &image_proc::backproject_depth_ushort, "image_in"_a, "point_image_out"_a,
+	      "fx"_a, "fy"_a, "cx"_a, "cy"_a, "normalizer"_a, "Back-project depth image into 3D points");
+
+	m.def("backproject_depth_float", &image_proc::backproject_depth_float, "image_in"_a, "point_image_out"_a,
+	      "fx"_a, "fy"_a, "cx"_a, "cy"_a, "Back-project depth image into 3D points");
+
+	m.def("compute_mesh_from_depth", &image_proc::compute_mesh_from_depth, "point_image"_a, "max_triangle_edge_distance"_a,
+	      "vertex_position"_a, "face_indices"_a, "Computes a mesh using back-projected points and pixel connectivity");
+
+	m.def("compute_mesh_from_depth_and_color", &image_proc::compute_mesh_from_depth_and_color, "point_image"_a, "color_image"_a,
+	      "max_triangle_edge_distance"_a, "vertex_positions"_a, "vertex_colors"_a, "face_indices"_a,
+	      "Computes a mesh using back-projected points and pixel connectivity. Additionally, extracts colors for each vertex");
+
+	// image filtering
+
+	m.def("filter_depth", &image_proc::filter_depth, "depth_image_in"_a, "depth_image_out"_a,
+	      "radius"_a, "Executes median filter on depth image");
+
+	// warping via bilinear/trilinear interpolation
+
+	m.def("warp_flow", &image_proc::warp_flow, "image"_a, "flow"_a, "mask"_a,
+	      "Warps image (RGB) using provided 2D flow inside masked region using bilinear interpolation.\n"
+	      "We assume:\n    image shape: (3, h, w)\n    flow shape: (2, h, w)\n    mask shape: (2, h, w)");
+
+	m.def("warp_rigid", &image_proc::warp_rigid, "rgbxyz_image"_a, "rotation"_a, "translation"_a, "fx"_a, "fy"_a, "cx"_a, "cy"_a,
+	      "Warps image (concatenated RGB + XYZ ordered point cloud, i.e. 6 channels) using provided depth map and rigid pose. Assumed rotation shape: (9), translation shape: (2).");
+
+	m.def("warp_3d", &image_proc::warp_3d, "Warps image inside masked region using provided warped point cloud and trilinear interpolation).",
+	      "We assume:\n    image shape: (6, h, w)\n    flow shape: (3, h, w)\n    mask shape: (h, w)");
+
+	// procedures for deformation graph node sampling from a point-cloud-based mesh
+
+	m.def("get_vertex_erosion_mask", &graph_proc::get_vertex_erosion_mask, "vertex_positions"_a, "face_indices"_a, "iteration_count"_a,
+	      "min_neighbors"_a,
+	      "Compile a vertex mask that can be used to erode the provided mesh (remove the vertices at surface discontinuities, leave only non-eroded vertices)");
+
+	m.def("sample_nodes", &graph_proc::sample_nodes, "vertex_positions_in"_a, "vertex_erosion_mask_in"_a, "node_positions_out"_a,
+	      "node_indices_out"_a, "node_coverage"_a, "use_only_non_eroded_indices"_a, "Samples graph nodes that cover given vertices.");
+
+	//
+
+
+	m.def("compute_edges_geodesic", &graph_proc::compute_edges_geodesic, "Computes geodesic edges between given graph nodes");
+	m.def("compute_edges_euclidean", &graph_proc::compute_edges_euclidean, "Computes Euclidean edges between given graph nodes");
+	m.def("compute_pixel_anchors_geodesic", &graph_proc::compute_pixel_anchors_geodesic,
+	      "Computes anchor ids and skinning weights for every pixel using graph connectivity");
+	m.def("compute_pixel_anchors_euclidean", &graph_proc::compute_pixel_anchors_euclidean,
+	      "Computes anchor ids and skinning weights for every pixel using Euclidean distances");
+
+	m.def("construct_regular_graph", &graph_proc::construct_regular_graph, "Samples graph uniformly in pixel space, and computes pixel anchors");
+
+	m.def("add", &add, "i"_a, "j"_a, R"pbdoc(
+    Add two numbers
+    Some other explanation about the add function.
+)pbdoc");
 }

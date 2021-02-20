@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import os
 
 import open3d as o3d

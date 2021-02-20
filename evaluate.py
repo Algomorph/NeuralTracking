@@ -35,12 +35,12 @@ def main():
     model_name       = opt.model_name
     gn_max_depth     = opt.gn_max_depth
     
-    # Image dimensiones to which we crop the input images, such that they are divisible by 64
+    # Image dimensions to which we crop the input images, such that they are divisible by 64
     image_height = opt.image_height
     image_width  = opt.image_width
 
     #####################################################################################################
-    # Read labels and assert existance of output dir
+    # Read labels and check existence of output dir
     #####################################################################################################
 
     labels_json = os.path.join(dataset_base_dir, f"{split}_graphs.json")
