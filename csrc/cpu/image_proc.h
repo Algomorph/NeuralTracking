@@ -60,6 +60,7 @@ namespace image_proc {
     );
 	
     void filter_depth(py::array_t<unsigned short>& depth_image_in, py::array_t<unsigned short>& depth_image_out, int radius);
+	py::array_t<unsigned short> filter_depth(py::array_t<unsigned short>& depth_image_in, int radius);
 
     py::array_t<float> warp_flow(const py::array_t<float>& image, const py::array_t<float>& flow, const py::array_t<float>& mask);
 

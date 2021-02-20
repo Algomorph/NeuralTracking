@@ -742,6 +742,13 @@ void filter_depth(py::array_t<unsigned short>& depth_image_in, py::array_t<unsig
 	}
 }
 
+py::array_t<unsigned short> filter_depth(py::array_t<unsigned short>& depth_image_in, int radius){
+	py::array_t<unsigned short> depth_image_out({depth_image_in.shape(0),depth_image_in.shape(1)});
+	memset(depth_image_out.mutable_data(0,0), 0, depth_image_out.size() * sizeof(unsigned short));
+	filter_depth(depth_image_in, depth_image_out, radius);
+	return depth_image_out;
+}
+
 py::array_t<float> warp_flow(const py::array_t<float>& image, const py::array_t<float>& flow, const py::array_t<float>& mask) {
 	// We assume:
 	//      image shape (3, h, w)

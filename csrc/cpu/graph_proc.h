@@ -7,6 +7,7 @@
 
 #define GRAPH_K 4
 
+
 namespace graph_proc {
 
     /**
@@ -29,10 +30,10 @@ namespace graph_proc {
 	 * distances.
 	 */
 	py::array_t<int> compute_edges_geodesic(
-		const py::array_t<float>& vertexPositions,
-		const py::array_t<int>& faceIndices, 
-		const py::array_t<int>& nodeIndices, 
-		int nMaxNeighbors, float maxInfluence
+			const py::array_t<float>& vertex_positions,
+			const py::array_t<int>& face_indices,
+			const py::array_t<int>& node_indices,
+			int max_neighbor_count, float max_influence
 	);
 
 
@@ -40,20 +41,20 @@ namespace graph_proc {
 	 * Computes the graph edges between nodes, connecting nearest nodes using Euclidean
 	 * distances.
 	 */
-	py::array_t<int> compute_edges_euclidean(const py::array_t<float>& nodePositions, int nMaxNeighbors);
+	py::array_t<int> compute_edges_euclidean(const py::array_t<float>& node_positions, int max_neighbor_count);
 	
 	/**
 	 * For each input pixel it computes 4 nearest anchors, following graph edges. 
 	 * It also compute skinning weights for every pixel. 
 	 */ 
 	void compute_pixel_anchors_geodesic(
-        const py::array_t<float>& graphNodes, 
-        const py::array_t<int>& graphEdges,
-        const py::array_t<float>& pointImage,
-        int neighborhoodDepth,
-        float nodeCoverage,
-        py::array_t<int>& pixelAnchors, 
-        py::array_t<float>& pixelWeights
+        const py::array_t<float>& graph_nodes,
+        const py::array_t<int>& graph_edges,
+        const py::array_t<float>& point_image,
+        int neighborhood_depth,
+        float node_coverage,
+        py::array_t<int>& pixel_anchors,
+        py::array_t<float>& pixel_weights
     );
 
 
@@ -62,11 +63,11 @@ namespace graph_proc {
 	 * It also compute skinning weights for every pixel. 
 	 */ 
 	void compute_pixel_anchors_euclidean(
-        const py::array_t<float>& graphNodes, 
-        const py::array_t<float>& pointImage,
-        float nodeCoverage,
-        py::array_t<int>& pixelAnchors, 
-        py::array_t<float>& pixelWeights
+        const py::array_t<float>& graph_nodes,
+        const py::array_t<float>& point_image,
+        float node_coverage,
+        py::array_t<int>& pixel_anchors,
+        py::array_t<float>& pixel_weights
     );
 
     /**
@@ -74,15 +75,15 @@ namespace graph_proc {
      * (connecting each pixel with at most 8 neighbors).
 	 */ 
 	void construct_regular_graph(
-        const py::array_t<float>& pointImage,
-        int xNodes, int yNodes,
-        float edgeThreshold,
-        float maxPointToNodeDistance,
-        float maxDepth,
-        py::array_t<float>& graphNodes, 
-        py::array_t<int>& graphEdges, 
-        py::array_t<int>& pixelAnchors, 
-        py::array_t<float>& pixelWeights
+		    const py::array_t<float>& point_image,
+		    int x_nodes, int y_nodes,
+		    float edge_threshold,
+		    float max_point_to_node_distance,
+		    float max_depth,
+		    py::array_t<float>& graph_nodes,
+		    py::array_t<int>& graph_edges,
+		    py::array_t<int>& pixel_anchors,
+		    py::array_t<float>& pixel_weights
     );
 
 } // namespace graph_proc
