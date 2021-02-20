@@ -377,6 +377,7 @@ void backproject_depth_ushort(py::array_t<unsigned short>& image_in, py::array_t
 	assert(point_image_out.shape(1) == height);
 	assert(point_image_out.shape(2) == width);
 
+	#pragma omp parallel for
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
 			float depth = float(*image_in.data(y, x)) / normalizer;
@@ -397,7 +398,7 @@ void backproject_depth_ushort(py::array_t<unsigned short>& image_in, py::array_t
 py::array_t<float> backproject_depth_ushort(py::array_t<unsigned short>& image_in, float fx, float fy, float cx, float cy, float normalizer) {
 	py::array_t<float> point_image_out({static_cast<ssize_t>(3), image_in.shape(0), image_in.shape(1)});
 	memset(point_image_out.mutable_data(0, 0, 0), 0, point_image_out.size() * sizeof(float));
-	backproject_depth_ushort(image_in, fx, fy, cx, cy, normalizer);
+	backproject_depth_ushort(image_in, point_image_out, fx, fy, cx, cy, normalizer);
 	return point_image_out;
 }
 
@@ -412,6 +413,7 @@ void backproject_depth_float(py::array_t<float>& image_in, py::array_t<float>& p
 	assert(point_image_out.shape(1) == height);
 	assert(point_image_out.shape(2) == width);
 
+	#pragma omp parallel for
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
 			float depth = *image_in.data(y, x);

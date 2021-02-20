@@ -18,7 +18,10 @@ def main():
     fy = 577.46
     cx = 323.172
     cy = 236.417
-    point_cloud = nnrt.backproject_depth_ushort(filtered_depth1, fx, fy, cx, cy, 1000)
+
+    # point_cloud1 = np.empty((3, filtered_depth1.shape[0], filtered_depth1.shape[1]), dtype=np.float32)
+    # nnrt.backproject_depth_ushort(filtered_depth1, point_cloud1, fx, fy, cx, cy, 1000.0)
+    point_cloud = nnrt.backproject_depth_ushort(filtered_depth1, fx, fy, cx, cy, 1000.0)
 
 
 
