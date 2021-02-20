@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import nnrt
 import sys
 import cv2
