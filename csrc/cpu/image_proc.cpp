@@ -369,6 +369,10 @@ void backproject_depth_ushort(py::array_t<unsigned short>& image_in, py::array_t
 
 	int width = image_in.shape(1);
 	int height = image_in.shape(0);
+
+	//TODO: the convention for representing ordered point clouds ("point images") all-around this and other files
+	// should be changed such that the last dimension is 3, i.e. coordinate, since that yields performance benefits in most situations
+	// (i.e. a points coordinates are cached together when being processed by the CPU)
 	assert(point_image_out.shape(0) == 3);
 	assert(point_image_out.shape(1) == height);
 	assert(point_image_out.shape(2) == width);
@@ -388,6 +392,13 @@ void backproject_depth_ushort(py::array_t<unsigned short>& image_in, py::array_t
 			}
 		}
 	}
+}
+
+py::array_t<float> backproject_depth_ushort(py::array_t<unsigned short>& image_in, float fx, float fy, float cx, float cy, float normalizer) {
+	py::array_t<float> point_image_out({static_cast<ssize_t>(3), image_in.shape(0), image_in.shape(1)});
+	memset(point_image_out.mutable_data(0, 0, 0), 0, point_image_out.size() * sizeof(float));
+	backproject_depth_ushort(image_in, fx, fy, cx, cy, normalizer);
+	return point_image_out;
 }
 
 void backproject_depth_float(py::array_t<float>& image_in, py::array_t<float>& point_image_out,
@@ -742,9 +753,9 @@ void filter_depth(py::array_t<unsigned short>& depth_image_in, py::array_t<unsig
 	}
 }
 
-py::array_t<unsigned short> filter_depth(py::array_t<unsigned short>& depth_image_in, int radius){
-	py::array_t<unsigned short> depth_image_out({depth_image_in.shape(0),depth_image_in.shape(1)});
-	memset(depth_image_out.mutable_data(0,0), 0, depth_image_out.size() * sizeof(unsigned short));
+py::array_t<unsigned short> filter_depth(py::array_t<unsigned short>& depth_image_in, int radius) {
+	py::array_t<unsigned short> depth_image_out({depth_image_in.shape(0), depth_image_in.shape(1)});
+	memset(depth_image_out.mutable_data(0, 0), 0, depth_image_out.size() * sizeof(unsigned short));
 	filter_depth(depth_image_in, depth_image_out, radius);
 	return depth_image_out;
 }

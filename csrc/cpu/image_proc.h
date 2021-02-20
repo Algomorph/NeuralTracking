@@ -46,6 +46,7 @@ namespace image_proc {
     void extend3(py::array_t<bool> &in, py::array_t<bool> &out);
 
     void backproject_depth_ushort(py::array_t<unsigned short>& image_in, py::array_t<float>& point_image_out, float fx, float fy, float cx, float cy, float normalizer);
+	py::array_t<float> backproject_depth_ushort(py::array_t<unsigned short>& image_in, float fx, float fy, float cx, float cy, float normalizer);
 
     void backproject_depth_float(py::array_t<float>& image_in, py::array_t<float>& point_image_out, float fx, float fy, float cx, float cy);
 
@@ -58,7 +59,7 @@ namespace image_proc {
 		    const py::array_t<float>& point_image, const py::array_t<int>& color_image, float max_triangle_edge_distance,
 		    py::array_t<float>& vertex_positions, py::array_t<int>& vertex_colors, py::array_t<int>& face_indices
     );
-	
+
     void filter_depth(py::array_t<unsigned short>& depth_image_in, py::array_t<unsigned short>& depth_image_out, int radius);
 	py::array_t<unsigned short> filter_depth(py::array_t<unsigned short>& depth_image_in, int radius);
 

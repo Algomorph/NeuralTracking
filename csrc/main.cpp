@@ -3,10 +3,6 @@
 #include "cpu/image_proc.h"
 #include "cpu/graph_proc.h"
 
-#ifndef TORCH_EXTENSION_NAME
-#define TORCH_EXTENSION_NAME nnrt
-#endif
-
 #define XSTRINGIFY(s) STRINGIFY(s)
 #define STRINGIFY(s) #s
 
@@ -18,7 +14,7 @@ int add(int i, int j) {
 }
 
 // Definitions of all methods in the module.
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+PYBIND11_MODULE(nnrt, m) {
 
 	m.def("compute_augmented_flow_from_rotation",
 	      &image_proc::compute_augmented_flow_from_rotation,
@@ -36,8 +32,19 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 	//[image] --> [ordered point cloud (point image)] and [point image] --> [mesh (vertex positions, vertex colors, face vertex indices)]
 
-	m.def("backproject_depth_ushort", &image_proc::backproject_depth_ushort, "image_in"_a, "point_image_out"_a,
-	      "fx"_a, "fy"_a, "cx"_a, "cy"_a, "normalizer"_a, "Back-project depth image into 3D points");
+	m.def("backproject_depth_ushort",
+	      py::overload_cast<
+			      py::array_t<unsigned short>&, py::array_t<float>&, float, float, float, float, float
+	      >(&image_proc::backproject_depth_ushort),
+	      "image_in"_a, "point_image_out"_a, "fx"_a, "fy"_a, "cx"_a, "cy"_a, "normalizer"_a,
+	      "Back-project depth image into 3D points. Stores output in point_image_out.");
+
+	m.def("backproject_depth_ushort",
+	      py::overload_cast<
+			      py::array_t<unsigned short>&, float, float, float, float, float
+	      >(&image_proc::backproject_depth_ushort),
+	      "image_in"_a,  "fx"_a, "fy"_a, "cx"_a, "cy"_a, "normalizer"_a,
+	      "Back-project depth image into 3D points. Returns output array.");
 
 	m.def("backproject_depth_float", &image_proc::backproject_depth_float, "image_in"_a, "point_image_out"_a,
 	      "fx"_a, "fy"_a, "cx"_a, "cy"_a, "Back-project depth image into 3D points");
