@@ -204,3 +204,6 @@ if(TARGET pybind11::module)
     set(PYBIND11_TARGET "pybind11::module")
 endif()
 
+# Pytorch
+find_package(Pytorch REQUIRED)
+list(APPEND NNRT_3RDPARTY_PUBLIC_TARGETS torch_cpu)

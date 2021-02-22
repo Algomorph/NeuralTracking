@@ -19,9 +19,8 @@ namespace graph_proc {
 	 * Samples nodes that cover all vertex positions with given node coverage.
 	 * Nodes are sampled from vertices, resulting node vertex indices are returned.
 	 */
-	int sample_nodes(
+	py::tuple sample_nodes(
 		    const py::array_t<float>& vertex_positions_in, const py::array_t<bool>& vertex_erosion_mask_in,
-		    py::array_t<float>& node_positions_out, py::array_t<int>& node_indices_out,
 		    float node_coverage, const bool use_only_non_eroded_indices);
 
 

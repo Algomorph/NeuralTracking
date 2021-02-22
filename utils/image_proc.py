@@ -1,14 +1,14 @@
-import sys, os
-import struct
 import numpy as np
 import math
 
-from NeuralNRT._C import backproject_depth_ushort as backproject_depth_ushort_c
-from NeuralNRT._C import backproject_depth_float as backproject_depth_float_c
-from NeuralNRT._C import warp_flow as warp_flow_c
-from NeuralNRT._C import warp_rigid as warp_rigid_c
-from NeuralNRT._C import warp_3d as warp_3d_c
-from utils import utils
+from nnrt import backproject_depth_ushort as backproject_depth_ushort_c
+from nnrt import backproject_depth_float as backproject_depth_float_c
+from nnrt import warp_flow as warp_flow_c
+from nnrt import warp_3d as warp_3d_c
+
+
+def in_bounds(point, h, w):
+    return point[0] >= 0.0 and point[0] < w and point[1] >= 0.0 and point[1] < h
 
 
 def warp_flow_py(image, flow, mask):

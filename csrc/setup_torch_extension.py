@@ -26,7 +26,6 @@ class get_pybind_include(object):
         import pybind11
         return pybind11.get_include(self.user)
 
-
 def get_extensions():
     this_dir = os.path.dirname(os.path.abspath(__file__))
     extensions_dir = os.path.join(this_dir, ".")
@@ -67,7 +66,7 @@ def get_extensions():
 
     ext_modules = [
         extension(
-            "NeuralNRT._C",
+            "nnrt",
             sources,
             include_dirs=include_dirs,
             define_macros=define_macros,

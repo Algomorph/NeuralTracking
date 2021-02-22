@@ -52,7 +52,7 @@ PYBIND11_MODULE(nnrt, m) {
 	m.def("compute_mesh_from_depth", &image_proc::compute_mesh_from_depth, "point_image"_a, "max_triangle_edge_distance"_a,
 	      "vertex_position"_a, "face_indices"_a, "Computes a mesh using back-projected points and pixel connectivity");
 
-	m.def("compute_mesh_from_depth_and_color", &image_proc::compute_mesh_from_depth_and_color, "point_image"_a, "color_image"_a,
+	m.def("compute_mesh_from_depth_and_color", &image_proc::compute_mesh_from_depth_and_color, "point_image"_a, "background_image"_a,
 	      "max_triangle_edge_distance"_a, "vertex_positions"_a, "vertex_colors"_a, "face_indices"_a,
 	      "Computes a mesh using back-projected points and pixel connectivity. Additionally, extracts colors for each vertex");
 
@@ -82,8 +82,7 @@ PYBIND11_MODULE(nnrt, m) {
 	      "min_neighbors"_a,
 	      "Compile a vertex mask that can be used to erode the provided mesh (remove the vertices at surface discontinuities, leave only non-eroded vertices)");
 
-	m.def("sample_nodes", &graph_proc::sample_nodes, "vertex_positions_in"_a, "vertex_erosion_mask_in"_a, "node_positions_out"_a,
-	      "node_indices_out"_a, "node_coverage"_a, "use_only_non_eroded_indices"_a, "Samples graph nodes that cover given vertices.");
+	m.def("sample_nodes", &graph_proc::sample_nodes, "vertex_positions_in"_a, "vertex_erosion_mask_in"_a, "node_coverage"_a, "use_only_non_eroded_indices"_a, "Samples graph nodes that cover given vertices.");
 
 	// procedures for deformation graph processing
 
@@ -119,8 +118,5 @@ PYBIND11_MODULE(nnrt, m) {
 
 	m.def("construct_regular_graph", &graph_proc::construct_regular_graph, "Samples graph uniformly in pixel space, and computes pixel anchors");
 
-	m.def("add", &add, "i"_a, "j"_a, R"pbdoc(
-    Add two numbers
-    Some other explanation about the add function.
-)pbdoc");
+
 }

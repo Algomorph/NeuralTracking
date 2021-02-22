@@ -1,6 +1,4 @@
 include(get_python_version)
-#include(get_pybind11_include_dir)
-include(get_torch_include_dirs)
 include(get_python_include_dir)
 
 if (NOT PYTHON_EXECUTABLE)
@@ -34,20 +32,20 @@ pybind11_add_module(nnrt main.cpp
     cpu/image_proc.cpp
 )
 
-get_torch_include_dirs(${PYTHON_EXECUTABLE} PYTORCH_INCLUDE_DIRS)
 get_python_include_dir(${PYTHON_EXECUTABLE} PYTHON_INCLUDE_DIR)
 
 target_include_directories(nnrt PRIVATE
     ${PYTORCH_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${PYTHON_INCLUDE_DIR}
+    ${TORCH_INCLUDE_DIRS}
 )
 
 nnrt_link_3rdparty_libraries(nnrt)
 
 # Use `make pip-package` to create the pip package in the build directory
 add_custom_target(pip-package
-    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py bdist_wheel --dist-dir ${PIP_PACKAGE_DST_DIR}
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/setup_pybind_cmake.py bdist_wheel --dist-dir ${PIP_PACKAGE_DST_DIR}
     COMMAND echo "pip wheel created at ${PIP_PACKAGE_DST_DIR}"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     DEPENDS nnrt
