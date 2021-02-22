@@ -76,7 +76,7 @@ def make_z_aligned_image_plane(min_pt, max_pt, z, image):
     return plane_mesh
 
 
-def draw_knn_graph(node_positions: np.ndarray, node_edges: np.ndarray, background_image: o3d.geometry.Image) -> None:
+def draw_knn_graph(node_positions: np.ndarray, node_edges: np.ndarray, background_image: o3d.geometry.Image = None) -> None:
     first_connections = node_edges[:, :1].copy()
     node_indices = np.arange(0, node_positions.shape[0]).reshape(-1, 1)
     lines_0 = np.concatenate((node_indices.copy(), first_connections), axis=1)
@@ -97,9 +97,13 @@ def draw_knn_graph(node_positions: np.ndarray, node_edges: np.ndarray, backgroun
     extent_min = node_positions.min(axis=0)
     plane_z = extent_max[2]
 
-    plane_mesh = make_z_aligned_image_plane((extent_min[0], extent_min[1]), (extent_max[0], extent_max[1]), plane_z, background_image)
+    if background_image is not None:
+        plane_mesh = make_z_aligned_image_plane((extent_min[0], extent_min[1]), (extent_max[0], extent_max[1]), plane_z, background_image)
+        geometries = [plane_mesh, line_set]
+    else:
+        geometries = [line_set]
 
-    o3d.visualization.draw_geometries([plane_mesh, line_set],
+    o3d.visualization.draw_geometries(geometries,
                                       front=[0, 0, -1],
                                       lookat=[0, 0, 1.5],
                                       up=[0, -1.0, 0],
