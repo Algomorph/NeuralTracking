@@ -60,7 +60,7 @@ def main():
     # Go over dataset
     #####################################################################################################
 
-    # Graph error (EPE on graph nodes)
+    # Graph error (EPE on graph canonical_node_positions)
     graph_error_3d_sum = 0.0
     total_num_nodes = 0
 
@@ -148,7 +148,7 @@ def main():
         ##############################################################################################        
 
         ######################
-        # Node translations (graph_node_deformations are the groundtruth graph nodes translations)
+        # Node translations (graph_node_deformations are the groundtruth graph canonical_node_positions translations)
         ######################
         graph_error_3d_dict = EPE_3D_eval(
             graph_node_deformations, node_translations_pred

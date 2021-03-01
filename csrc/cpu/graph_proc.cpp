@@ -5,6 +5,7 @@
 #include <numeric> //std::iota
 #include <algorithm>
 #include <random>
+#include <queue>
 
 #include <Eigen/Dense>
 
@@ -12,6 +13,14 @@ using std::vector;
 
 namespace graph_proc {
 
+/**
+ * \brief Compile a vertex mask that can be used to erode the provided mesh (iteratively mask out vertices at surface discontinuities, leave only non-eroded vertices)
+ * \param vertex_positions array with vertex positions of dimentions (N, 3)
+ * \param face_indices
+ * \param iteration_count
+ * \param min_neighbors minimum number of neighbors considered for erosion
+ * \return (N, 1) array containing the erosion mask, such that, if applied to the original vertex postions array, would leave only non-eroded vertices
+ */
 py::array_t<bool> get_vertex_erosion_mask(const py::array_t<float>& vertex_positions, const py::array_t<int>& face_indices,
                                           int iteration_count, int min_neighbors) {
 	int vertex_count = vertex_positions.shape(0);
@@ -94,7 +103,7 @@ py::tuple sample_nodes(
 	std::default_random_engine re{std::random_device{}()};
 	std::shuffle(std::begin(shuffled_vertices), std::end(shuffled_vertices), re);
 
-	struct NodeInformation{
+	struct NodeInformation {
 		Eigen::Vector3f vertex_position;
 		int vertex_index;
 	};
@@ -128,7 +137,7 @@ py::tuple sample_nodes(
 	py::array_t<int> node_indices_out({static_cast<ssize_t>(node_information_vector.size()), static_cast<ssize_t>(1)});
 
 	int node_index = 0;
-	for(const auto& node_information : node_information_vector){
+	for (const auto& node_information : node_information_vector) {
 		*node_positions_out.mutable_data(node_index, 0) = node_information.vertex_position.x();
 		*node_positions_out.mutable_data(node_index, 1) = node_information.vertex_position.y();
 		*node_positions_out.mutable_data(node_index, 2) = node_information.vertex_position.z();
@@ -597,6 +606,10 @@ void compute_pixel_anchors_euclidean(
 	}
 }
 
+/**
+  * Sample graph regularly from the image, using pixel-wise connectivity
+  * (connecting each pixel with at most 8 neighbors).
+  */
 void construct_regular_graph(
 		const py::array_t<float>& point_image,
 		int x_nodes, int y_nodes,
@@ -614,8 +627,8 @@ void construct_regular_graph(
 	float x_step = float(width - 1) / static_cast<float>(x_nodes - 1);
 	float y_step = float(height - 1) / static_cast<float>(y_nodes - 1);
 
-	// Sample graph nodes.
-	// We need to maintain the mapping from all -> valid nodes ids.
+	// Sample graph canonical_node_positions.
+	// We need to maintain the mapping from all -> valid canonical_node_positions ids.
 	int node_count = x_nodes * y_nodes;
 	std::vector<int> sampled_node_mapping(node_count, -1);
 
@@ -632,7 +645,8 @@ void construct_regular_graph(
 			int x_pixel = static_cast<int>(std::round(static_cast<float>(x) * x_step));
 			int y_pixel = static_cast<int>(std::round(static_cast<float>(y) * y_step));
 
-			Eigen::Vector3f pixel_position(*point_image.data(0, y_pixel, x_pixel), *point_image.data(1, y_pixel, x_pixel),
+			Eigen::Vector3f pixel_position(*point_image.data(0, y_pixel, x_pixel),
+			                               *point_image.data(1, y_pixel, x_pixel),
 			                               *point_image.data(2, y_pixel, x_pixel));
 			if (pixel_position.z() <= 0 || pixel_position.z() > max_depth) continue;
 
@@ -644,64 +658,64 @@ void construct_regular_graph(
 
 	// Compute graph edges using pixel-wise connectivity. Each node
 	// is connected with at most 8 neighboring pixels.
-	int neighbor_count = 8;
+	int max_neighbor_count = 8;
 	float edge_threshold_squared = edge_threshold * edge_threshold;
 
-	std::vector<int> sampled_node_edges(sampled_node_count * neighbor_count, -1);
+	std::vector<int> sampled_node_edges(sampled_node_count * max_neighbor_count, -1);
 	std::vector<bool> connected_nodes(sampled_node_count, false);
 
 	int connected_node_count = 0;
 	for (int y = 0; y < y_nodes; y++) {
 		for (int x = 0; x < x_nodes; x++) {
-			int nodeIdx = y * x_nodes + x;
-			int nodeId = sampled_node_mapping[nodeIdx];
+			int node_index = y * x_nodes + x;
+			int sampled_node_index = sampled_node_mapping[node_index];
 
-			if (nodeId >= 0) {
-				Eigen::Vector3f nodePosition = node_positions[nodeId];
+			if (sampled_node_index >= 0) {
+				Eigen::Vector3f node_position = node_positions[sampled_node_index];
 
-				int neighborCount = 0;
-				for (int yDelta = -1; yDelta <= 1; yDelta++) {
-					for (int xDelta = -1; xDelta <= 1; xDelta++) {
-						int xNeighbor = x + xDelta;
-						int yNeighbor = y + yDelta;
-						if (xNeighbor < 0 || xNeighbor >= x_nodes || yNeighbor < 0 || yNeighbor >= y_nodes)
+				int neighbor_count = 0;
+				for (int y_delta = -1; y_delta <= 1; y_delta++) {
+					for (int x_delta = -1; x_delta <= 1; x_delta++) {
+						int x_neighbor = x + x_delta;
+						int y_neighbor = y + y_delta;
+						if (x_neighbor < 0 || x_neighbor >= x_nodes || y_neighbor < 0 || y_neighbor >= y_nodes)
 							continue;
 
-						int neighborIdx = yNeighbor * x_nodes + xNeighbor;
+						int neighbor_index = y_neighbor * x_nodes + x_neighbor;
 
-						if (neighborIdx == nodeIdx || neighborIdx < 0)
+						if (neighbor_index == node_index || neighbor_index < 0)
 							continue;
 
-						int neighborId = sampled_node_mapping[neighborIdx];
-						if (neighborId >= 0) {
-							Eigen::Vector3f neighborPosition = node_positions[neighborId];
+						int sampled_neighbor_index = sampled_node_mapping[neighbor_index];
+						if (sampled_neighbor_index >= 0) {
+							Eigen::Vector3f neighbor_position = node_positions[sampled_neighbor_index];
 
-							if ((neighborPosition - nodePosition).squaredNorm() <= edge_threshold_squared) {
-								sampled_node_edges[nodeId * neighbor_count + neighborCount] = neighborId;
-								neighborCount++;
+							if ((neighbor_position - node_position).squaredNorm() <= edge_threshold_squared) {
+								sampled_node_edges[sampled_node_index * max_neighbor_count + neighbor_count] = sampled_neighbor_index;
+								neighbor_count++;
 							}
 						}
 					}
 				}
 
-				for (int i = neighborCount; i < neighbor_count; i++) {
-					sampled_node_edges[nodeId * neighbor_count + i] = -1;
+				for (int i = neighbor_count; i < max_neighbor_count; i++) {
+					sampled_node_edges[sampled_node_index * max_neighbor_count + i] = -1;
 				}
 
-				if (neighborCount > 0) {
-					connected_nodes[nodeId] = true;
+				if (neighbor_count > 0) {
+					connected_nodes[sampled_node_index] = true;
 					connected_node_count += 1;
 				}
 			}
 		}
 	}
 
-	// Filter out nodes with no edges.
+	// Filter out canonical_node_positions with no edges.
 	// After changing node ids the edge ids need to be changed as well.
 	std::vector<int> valid_node_mapping(sampled_node_count, -1);
 	{
 		graph_nodes.resize({connected_node_count, 3}, false);
-		graph_edges.resize({connected_node_count, neighbor_count}, false);
+		graph_edges.resize({connected_node_count, max_neighbor_count}, false);
 
 		int valid_node_index = 0;
 		for (int y = 0; y < y_nodes; y++) {
@@ -732,8 +746,8 @@ void construct_regular_graph(
 				int valid_node_index = valid_node_mapping[sampled_node_index];
 
 				if (valid_node_index >= 0) {
-					for (int i = 0; i < neighbor_count; i++) {
-						int sampledNeighborId = sampled_node_edges[sampled_node_index * neighbor_count + i];
+					for (int i = 0; i < max_neighbor_count; i++) {
+						int sampledNeighborId = sampled_node_edges[sampled_node_index * max_neighbor_count + i];
 						if (sampledNeighborId >= 0) {
 							*graph_edges.mutable_data(valid_node_index, i) = valid_node_mapping[sampledNeighborId];
 						} else {
@@ -759,42 +773,43 @@ void construct_regular_graph(
 				*pixel_weights.mutable_data(y, x, k) = 0.f;
 			}
 
-			// Compute 4 nearest nodes.
+			// Compute 4 nearest canonical_node_positions.
 			float x_node = float(x) / x_step;
 			float y_node = float(y) / y_step;
 
 			int x0 = std::floor(x_node), x1 = x0 + 1;
 			int y0 = std::floor(y_node), y1 = y0 + 1;
 
-			// Check that all neighboring nodes are valid.
+			// Check that all neighboring canonical_node_positions are valid.
 			if (x0 < 0 || x1 >= x_nodes || y0 < 0 || y1 >= y_nodes)
 				continue;
 
-			int sampledNode00 = sampled_node_mapping[y0 * x_nodes + x0];
-			int sampledNode01 = sampled_node_mapping[y1 * x_nodes + x0];
-			int sampledNode10 = sampled_node_mapping[y0 * x_nodes + x1];
-			int sampledNode11 = sampled_node_mapping[y1 * x_nodes + x1];
+			int sampled_node_00 = sampled_node_mapping[y0 * x_nodes + x0];
+			int sampled_node_01 = sampled_node_mapping[y1 * x_nodes + x0];
+			int sampled_node_10 = sampled_node_mapping[y0 * x_nodes + x1];
+			int sampled_node_11 = sampled_node_mapping[y1 * x_nodes + x1];
 
-			if (sampledNode00 < 0 || sampledNode01 < 0 || sampledNode10 < 0 || sampledNode11 < 0)
+			if (sampled_node_00 < 0 || sampled_node_01 < 0 || sampled_node_10 < 0 || sampled_node_11 < 0)
 				continue;
 
-			int validNode00 = valid_node_mapping[sampledNode00];
-			int validNode01 = valid_node_mapping[sampledNode01];
-			int validNode10 = valid_node_mapping[sampledNode10];
-			int validNode11 = valid_node_mapping[sampledNode11];
+			int valid_node_00 = valid_node_mapping[sampled_node_00];
+			int valid_node_01 = valid_node_mapping[sampled_node_01];
+			int valid_node_10 = valid_node_mapping[sampled_node_10];
+			int valid_node_11 = valid_node_mapping[sampled_node_11];
 
-			if (validNode00 < 0 || validNode01 < 0 || validNode10 < 0 || validNode11 < 0)
+			if (valid_node_00 < 0 || valid_node_01 < 0 || valid_node_10 < 0 || valid_node_11 < 0)
 				continue;
 
-			// Check that all nodes are close enough to the point.
-			Eigen::Vector3f pixelPos(*point_image.data(0, y, x), *point_image.data(1, y, x), *point_image.data(2, y, x));
-			if (pixelPos.z() <= 0 || pixelPos.z() > max_depth) continue;
+			// Check that all canonical_node_positions are close enough to the point.
+			Eigen::Vector3f pixel_position(*point_image.data(0, y, x),
+			                               *point_image.data(1, y, x),
+			                               *point_image.data(2, y, x));
+			if (pixel_position.z() <= 0 || pixel_position.z() > max_depth) continue;
 
-			if ((pixelPos - node_positions[sampledNode00]).squaredNorm() > max_point_to_node_distance_squared ||
-			    (pixelPos - node_positions[sampledNode01]).squaredNorm() > max_point_to_node_distance_squared ||
-			    (pixelPos - node_positions[sampledNode10]).squaredNorm() > max_point_to_node_distance_squared ||
-			    (pixelPos - node_positions[sampledNode11]).squaredNorm() > max_point_to_node_distance_squared
-					) {
+			if ((pixel_position - node_positions[sampled_node_00]).squaredNorm() > max_point_to_node_distance_squared ||
+			    (pixel_position - node_positions[sampled_node_01]).squaredNorm() > max_point_to_node_distance_squared ||
+			    (pixel_position - node_positions[sampled_node_10]).squaredNorm() > max_point_to_node_distance_squared ||
+			    (pixel_position - node_positions[sampled_node_11]).squaredNorm() > max_point_to_node_distance_squared) {
 				continue;
 			}
 
@@ -807,16 +822,33 @@ void construct_regular_graph(
 			float w10 = dx * (1 - dy);
 			float w11 = dx * dy;
 
-			*pixel_anchors.mutable_data(y, x, 0) = validNode00;
+			*pixel_anchors.mutable_data(y, x, 0) = valid_node_00;
 			*pixel_weights.mutable_data(y, x, 0) = w00;
-			*pixel_anchors.mutable_data(y, x, 1) = validNode01;
+			*pixel_anchors.mutable_data(y, x, 1) = valid_node_01;
 			*pixel_weights.mutable_data(y, x, 1) = w01;
-			*pixel_anchors.mutable_data(y, x, 2) = validNode10;
+			*pixel_anchors.mutable_data(y, x, 2) = valid_node_10;
 			*pixel_weights.mutable_data(y, x, 2) = w10;
-			*pixel_anchors.mutable_data(y, x, 3) = validNode11;
+			*pixel_anchors.mutable_data(y, x, 3) = valid_node_11;
 			*pixel_weights.mutable_data(y, x, 3) = w11;
 		}
 	}
+}
+
+py::tuple construct_regular_graph(
+		const py::array_t<float>& point_image,
+		int x_nodes, int y_nodes,
+		float edge_threshold,
+		float max_point_to_node_distance,
+		float max_depth
+) {
+	py::array_t<float> graph_nodes;
+	py::array_t<int> graph_edges;
+	py::array_t<int> pixel_anchors;
+	py::array_t<float> pixel_weights;
+	construct_regular_graph(point_image, x_nodes, y_nodes, edge_threshold,
+	                        max_point_to_node_distance, max_depth,
+	                        graph_nodes, graph_edges, pixel_anchors, pixel_weights);
+	return py::make_tuple(graph_nodes, graph_edges, pixel_anchors, pixel_weights);
 }
 
 } // namespace graph_proc

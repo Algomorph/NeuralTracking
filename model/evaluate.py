@@ -147,7 +147,7 @@ def evaluate(model, criterion, dataloader, batch_num, split):
             total_num_pixels_2 += epe2d_dict["num"]
 
             # B) Deformation translation/angle difference.
-            # Important: We also evaluate nodes that were filtered at optimization (and were assigned
+            # Important: We also evaluate canonical_node_positions that were filtered at optimization (and were assigned
             # identity deformation). 
             for k in range(batch_size):
                 # We validate node deformation of both valid and invalid solves (for invalid
@@ -158,7 +158,7 @@ def evaluate(model, criterion, dataloader, batch_num, split):
                 t_pred = translations_pred[k].view(1, -1, 3)
                 deformations_validity = model_data["deformations_validity"][k].view(1, -1)
 
-                # For evaluation of all nodes (valid or invalid), we take all nodes into account.
+                # For evaluation of all canonical_node_positions (valid or invalid), we take all canonical_node_positions into account.
                 deformations_validity_all = torch.zeros_like(deformations_validity)
                 deformations_validity_all[:, :int(num_nodes[k])] = 1
 

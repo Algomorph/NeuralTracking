@@ -10,9 +10,11 @@ from model.model import DeformNet
 from model import dataset
 
 import utils.utils as utils
-import utils.viz_utils as viz_utils
+import utils.visualization.coordinate_transformations as viz_utils
+import utils.mesh_utils as mesh_utils
 import utils.nnutils as nnutils
-import utils.line_mesh as line_mesh_utils
+import utils.visualization.line_mesh as line_mesh_utils
+import utils.visualization.viewer as viewer
 import options as opt
 
 
@@ -268,7 +270,7 @@ def main():
     graph_nodes = viz_utils.transform_pointcloud_to_opengl_coords(graph_nodes)
     deformed_graph_nodes = viz_utils.transform_pointcloud_to_opengl_coords(deformed_graph_nodes)
 
-    # Graph nodes
+    # Graph canonical_node_positions
     rendered_graph_nodes = []
     for node in graph_nodes:
         mesh_sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.01)
@@ -278,7 +280,7 @@ def main():
         rendered_graph_nodes.append(mesh_sphere)
     
     # Merge all different sphere meshes
-    rendered_graph_nodes = viz_utils.merge_meshes(rendered_graph_nodes)
+    rendered_graph_nodes = mesh_utils.merge_meshes(rendered_graph_nodes)
 
     # Graph edges
     edges_pairs = []
@@ -293,11 +295,11 @@ def main():
     line_mesh_geoms = line_mesh.cylinder_segments
 
     # Merge all different line meshes
-    line_mesh_geoms = viz_utils.merge_meshes(line_mesh_geoms)
+    line_mesh_geoms = mesh_utils.merge_meshes(line_mesh_geoms)
 
     # o3d.visualization.draw_geometries([rendered_graph_nodes, line_mesh_geoms, source_object_pcd])
 
-    # Combined nodes & edges
+    # Combined canonical_node_positions & edges
     rendered_graph = [rendered_graph_nodes, line_mesh_geoms]
 
     ####################################
@@ -442,7 +444,7 @@ def main():
     #####################################################################################################
     # Open viewer
     #####################################################################################################
-    manager = viz_utils.CustomDrawGeometryWithKeyCallback(
+    manager = viewer.CustomDrawGeometryWithKeyCallbackViewer(
         geometry_dict, alignment_dict, matches_dict
     )
     manager.custom_draw_geometry_with_key_callback()

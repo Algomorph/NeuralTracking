@@ -98,7 +98,7 @@ def warp_deform_py(image, pixel_anchors, pixel_weights, node_positions, node_rot
     #               image               shape (6, h, w)
     #               pixel_anchors       shape (h, w, 4)
     #               pixel_weights       shape (h, w, 4)
-    #               node_positions      shape (num_nodes, 3)
+    #               canonical_node_positions      shape (num_nodes, 3)
     #               node_rotations      shape (num_nodes, 3, 3)
     #               node_translations   shape (num_nodes, 3)
 
@@ -195,7 +195,7 @@ def warp_deform(image, pixel_anchors, pixel_weights, node_positions, node_rotati
     #               image               shape (6, h, w)
     #               pixel_anchors       shape (h, w, 4)
     #               pixel_weights       shape (h, w, 4)
-    #               node_positions      shape (num_nodes, 3)
+    #               canonical_node_positions      shape (num_nodes, 3)
     #               node_rotations      shape (num_nodes, 3, 3)
     #               node_translations   shape (num_nodes, 3)
 
@@ -246,7 +246,7 @@ def warp_deform_3d(image, pixel_anchors, pixel_weights, node_positions, node_rot
     #               image               shape (6, h, w)
     #               pixel_anchors       shape (h, w, 4)
     #               pixel_weights       shape (h, w, 4)
-    #               node_positions      shape (num_nodes, 3)
+    #               canonical_node_positions      shape (num_nodes, 3)
     #               node_rotations      shape (num_nodes, 3, 3)
     #               node_translations   shape (num_nodes, 3)
 

@@ -89,7 +89,7 @@ class DeformDataset(Dataset):
             graph_clusters_path, pixel_anchors_path, pixel_weights_path, cropper
         )
 
-        # Compute groundtruth transformation for graph nodes.
+        # Compute groundtruth transformation for graph canonical_node_positions.
         num_nodes = graph_nodes.shape[0]
 
         # Check that flow mask is valid for at least one pixel.
@@ -238,7 +238,7 @@ class DeformDataset(Dataset):
     def collate_with_padding(batch):
         batch_size = len(batch)
 
-        # Compute max number of nodes.
+        # Compute max number of canonical_node_positions.
         item_keys = 0
         max_num_nodes = 0
         for sample_idx in range(batch_size):
@@ -248,7 +248,7 @@ class DeformDataset(Dataset):
                 max_num_nodes = num_nodes
 
         # Convert merged parts into torch tensors.
-        # We pad graph nodes, edges and deformation ground truth with zeros.
+        # We pad graph canonical_node_positions, edges and deformation ground truth with zeros.
         batch_converted = {}
 
         for key in item_keys:

@@ -222,7 +222,7 @@ def compute_deformed_points_gt(
             # Filter out points randomly, if too many are still left.
             if deformed_points_subsampled[i]:
                 sampled_idxs_i = deformed_points_idxs[i]
-                deformed_points_i_gt  = deformed_points_i_gt[sampled_idxs_i]
+                deformed_points_i_gt = deformed_points_i_gt[sampled_idxs_i]
 
             num_points = deformed_points_i_gt.shape[0]
 

@@ -9,28 +9,27 @@ import re
 from skimage import io
 from PIL import Image
 
-from utils import flow_vis
+from utils.visualization import flow_visualization
 
 
 def show_mask_image(image_numpy):
     assert image_numpy.dtype == np.bool
     image_to_show = np.copy(image_numpy)
     image_to_show = (image_to_show * 255).astype(np.uint8)
-    
+
     img = Image.fromarray(image_to_show)
     img.show()
 
 
 def save_rgb_image(filename, image_numpy):
     image_to_save = np.copy(image_numpy)
-    
+
     if image_to_save.shape[0] == 3:
         image_to_save = np.moveaxis(image_to_save, 0, -1)
-    
+
     assert image_to_save.shape[-1] == 3, "image has {} channels, so it's not rgb, you liar!".format(image_to_save.shape[-1])
 
     if image_to_save.dtype == "float32":
-        
         assert np.max(image_to_save) <= 1.0
 
         image_to_save = image_to_save * 255.0
@@ -42,7 +41,7 @@ def save_rgb_image(filename, image_numpy):
 def save_grayscale_image(filename, image_numpy):
     image_to_save = np.copy(image_numpy)
     image_to_save = (image_to_save * 255).astype(np.uint8)
-    
+
     if len(image_to_save.shape) == 2:
         io.imsave(filename, image_to_save)
     elif len(image_to_save.shape) == 3:
@@ -79,11 +78,11 @@ def load_PFM(file):
         raise Exception('Malformed PFM header.')
 
     scale = float(file.readline().decode("ascii").rstrip())
-    if scale < 0: # little-endian
+    if scale < 0:  # little-endian
         endian = '<'
         scale = -scale
     else:
-        endian = '>' # big-endian
+        endian = '>'  # big-endian
 
     data = np.fromfile(file, endian + 'f')
     shape = (height, width, 3) if color else (height, width)
@@ -103,9 +102,9 @@ def save_PFM(file, image, scale=1):
 
     image = np.flipud(image)
 
-    if len(image.shape) == 3 and image.shape[2] == 3: # color image
+    if len(image.shape) == 3 and image.shape[2] == 3:  # color image
         color = True
-    elif len(image.shape) == 2 or len(image.shape) == 3 and image.shape[2] == 1: # greyscale
+    elif len(image.shape) == 2 or len(image.shape) == 3 and image.shape[2] == 1:  # greyscale
         color = False
     else:
         raise Exception('Image must have H x W x 3, H x W x 1 or H x W dimensions.')
@@ -143,7 +142,7 @@ def load_flow_binary(filename):
 def save_flow_binary(filename, flow):
     # Flow is stored row-wise in order [channels, height, width].
     assert len(flow.shape) == 3
-    
+
     with open(filename, 'wb') as fout:
         fout.write(struct.pack('I', flow.shape[2]))
         fout.write(struct.pack('I', flow.shape[1]))
@@ -176,7 +175,7 @@ def save_flow_middlebury(name, flow):
 
 def load_flow(filename):
     if filename.endswith('.pfm') or filename.endswith('.PFM'):
-        return load_PFM(filename)[0][:,:,0:2]
+        return load_PFM(filename)[0][:, :, 0:2]
     elif filename.endswith('.oflow') or filename.endswith('.OFLOW'):
         return load_flow_binary(filename)
     elif filename.endswith('.sflow') or filename.endswith('.SFLOW'):
@@ -214,13 +213,13 @@ def load_graph_nodes(filename):
         nodes = np.asarray(nodes, dtype=np.float32).reshape([num_nodes, 3])
 
     return nodes
-    
+
 
 def save_graph_nodes(filename, nodes):
     # Node positions are stored row-wise in order [num_nodes, 3].
     assert len(nodes.shape) == 2
-    assert(nodes.shape[1] == 3)
-    
+    assert (nodes.shape[1] == 3)
+
     with open(filename, 'wb') as fout:
         fout.write(struct.pack('I', nodes.shape[0]))
         fout.write(struct.pack('={}f'.format(nodes.size), *nodes.flatten("C")))
@@ -239,12 +238,12 @@ def load_graph_edges(filename):
         edges = np.asarray(edges, dtype=np.int32).reshape([num_nodes, num_neighbors])
 
     return edges
-    
+
 
 def save_graph_edges(filename, edges):
     # Graph edges are stored row-wise in order [num_nodes, num_edges].
     assert len(edges.shape) == 2
-    
+
     with open(filename, 'wb') as fout:
         fout.write(struct.pack('I', edges.shape[0]))
         fout.write(struct.pack('I', edges.shape[1]))
@@ -257,7 +256,7 @@ def load_graph_edges_weights(filename):
 
     edges_weights = None
     with open(filename, 'rb') as fin:
-        num_nodes     = struct.unpack('I', fin.read(4))[0]
+        num_nodes = struct.unpack('I', fin.read(4))[0]
         num_neighbors = struct.unpack('I', fin.read(4))[0]
 
         edges_weights = struct.unpack('f' * num_nodes * num_neighbors, fin.read(num_nodes * num_neighbors * 4))
@@ -265,10 +264,11 @@ def load_graph_edges_weights(filename):
 
     return edges_weights
 
+
 def save_graph_edges_weights(filename, edges_weights):
     # Graph edges are stored row-wise in order [num_nodes, num_edges].
     assert len(edges_weights.shape) == 2
-    
+
     with open(filename, 'wb') as fout:
         fout.write(struct.pack('I', edges_weights.shape[0]))
         fout.write(struct.pack('I', edges_weights.shape[1]))
@@ -287,13 +287,13 @@ def load_graph_node_deformations(filename):
         node_deformations = np.asarray(node_deformations, dtype=np.float32).reshape([num_nodes, 3])
 
     return node_deformations
-    
+
 
 def save_graph_node_deformations(filename, node_deformations):
     # Node deformations are stored row-wise in order [num_nodes, 3].
     assert len(node_deformations.shape) == 2
-    assert(node_deformations.shape[1] == 3)
-    
+    assert (node_deformations.shape[1] == 3)
+
     with open(filename, 'wb') as fout:
         fout.write(struct.pack('I', node_deformations.shape[0]))
         fout.write(struct.pack('={}f'.format(node_deformations.size), *node_deformations.flatten("C")))
@@ -313,10 +313,11 @@ def load_graph_clusters(filename):
 
     return clusters
 
+
 def save_graph_clusters(filename, clusters):
     # Graph clusters are stored row-wise in order [num_nodes, 1].
     assert len(clusters.shape) == 2
-    
+
     with open(filename, 'wb') as fout:
         fout.write(struct.pack('I', clusters.shape[0]))
         fout.write(struct.pack('I', clusters.shape[1]))
@@ -338,13 +339,14 @@ def load_float_image(filename):
         image = np.asarray(image, dtype=np.float32).reshape([xdim, ydim, zdim])
 
     return image
-    
+
+
 def save_float_image(filename, image_input):
     image = np.copy(image_input)
 
     # Image is stored row-wise in order [xdim, ydim, zdim].
     assert len(image.shape) == 3
-    
+
     with open(filename, 'wb') as fout:
         fout.write(struct.pack('I', image.shape[2]))
         fout.write(struct.pack('I', image.shape[1]))
@@ -357,7 +359,7 @@ def save_int_image(filename, image_input):
 
     # Image is stored row-wise in order [xdim, ydim, zdim].
     assert len(image.shape) == 3
-    
+
     with open(filename, 'wb') as fout:
         fout.write(struct.pack('I', image.shape[2]))
         fout.write(struct.pack('I', image.shape[1]))
@@ -408,7 +410,7 @@ def overlay_mask_and_save(filename, image_original, mask_original, alpha=0.5):
 
     source = Image.fromarray(source)
     source.paste(mask, (0, 0), mask)
-    source.save(filename,"PNG")
+    source.save(filename, "PNG")
 
 
 def overlay_images_and_save(filename, image_original_1, image_original_2, alpha=0.5):
@@ -444,7 +446,7 @@ def overlay_images_and_save(filename, image_original_1, image_original_2, alpha=
     # Overlay
     image_1.paste(image_2, (0, 0), image_2)
 
-    image_1.save(filename,"PNG")
+    image_1.save(filename, "PNG")
 
 
 def overlay_images(image_original_1, image_original_2, alpha=0.5):
@@ -489,18 +491,18 @@ def overlay_images(image_original_1, image_original_2, alpha=0.5):
 def draw_optical_flow_and_save(flow_image, filename):
     # Make copy of flow image
     flow_image_vis = np.copy(flow_image)
-    
+
     # If channels are on first axis, move to last
     if flow_image_vis.shape[0] == 2:
         flow_image_vis = np.moveaxis(flow_image_vis, 0, -1)
 
     assert flow_image_vis.shape[2] == 2
-    
+
     # Set to 0 if invalid
     flow_image_vis[flow_image_vis == -np.Inf] = 0.0
     flow_image_vis[flow_image_vis == np.Inf] = 0.0
 
-    flow_color = flow_vis.flow_to_color(flow_image_vis)
+    flow_color = flow_visualization.flow_to_color(flow_image_vis)
 
     plt.imsave(filename, flow_color)
 
@@ -547,5 +549,5 @@ def find_best_model_name(model_dirname, data_version, verbose=False):
         if model_step == str(best_step):
             assert best_model_name == None
             best_model_name = mn
-        
+
     return os.path.splitext(best_model_name)[0]

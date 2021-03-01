@@ -1,16 +1,23 @@
+### ================== pybind11-stubgen configuration ==================
+# Stubgen is currently required for proper code completion in PyCharm and other IDEs
+
+find_package(Pybind11StubgenExecutable)
+if (NOT PYBIND11_STUBGEN_EXECUTABLE)
+    message(FATAL_ERROR "PYBIND11_STUBGEN_EXECUTABLE should be set (pybind11-stubgen command will be found if present in the path)")
+endif()
+
+### ==================  Python configuration ========================
+# Required for building the python package and wheel for python pip
+
 include(get_python_version)
 include(get_python_include_dir)
+
+get_python_version(${PYTHON_EXECUTABLE} PYTHON_VERSION)
+get_python_include_dir(${PYTHON_EXECUTABLE} PYTHON_INCLUDE_DIR)
 
 if (NOT PYTHON_EXECUTABLE)
     message(FATAL_ERROR "PYTHON_EXECUTABLE should be set in top level CMakeLists.txt")
 endif()
-
-find_package(Pybind11StubgenExecutable)
-if (NOT PYBIND11_STUBGEN_EXECUTABLE)
-    message(FATAL_ERROR "PYBIND11_STUBGEN_EXECUTABLE should be set")
-endif()
-
-get_python_version(${PYTHON_EXECUTABLE} PYTHON_VERSION)
 
 # We need to get python version to configure some meta files
 message(STATUS "Using Python version: ${PYTHON_VERSION}")
@@ -19,29 +26,63 @@ message(STATUS "Using Python version: ${PYTHON_VERSION}")
 set(PIP_PACKAGE_DST_DIR "${CMAKE_BINARY_DIR}/pip_package")
 set(STUBS_PACKAGE_DST_DIR "${CMAKE_BINARY_DIR}/stubs")
 
-#file(REMOVE_RECURSE ${PIP_PACKAGE_DST_DIR})
-#file(REMOVE_RECURSE ${STUBS_PACKAGE_DST_DIR})
+
+### ================== Output directory prep ==================
+
 file(MAKE_DIRECTORY ${PIP_PACKAGE_DST_DIR})
 file(MAKE_DIRECTORY ${STUBS_PACKAGE_DST_DIR})
 
-pybind11_add_module(nnrt main.cpp
-    main.cpp
+
+# ==================== set up NNRT C++ library ============================
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+set(HEADER_FILES
     cpu/graph_proc.h
-    cpu/graph_proc.cpp
     cpu/image_proc.h
+)
+
+set(SOURCE_FILES
+    cpu/graph_proc.cpp
     cpu/image_proc.cpp
 )
 
-get_python_include_dir(${PYTHON_EXECUTABLE} PYTHON_INCLUDE_DIR)
-
-target_include_directories(nnrt PRIVATE
-    ${PYTORCH_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PYTHON_INCLUDE_DIR}
-    ${TORCH_INCLUDE_DIRS}
+add_library(nnrt_cpp STATIC
+    ${HEADER_FILES}
+    ${SOURCE_FILES}
 )
 
-nnrt_link_3rdparty_libraries(nnrt)
+target_include_directories(nnrt_cpp PUBLIC
+    ${PYTHON_INCLUDE_DIR}
+    ${TORCH_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+nnrt_link_3rdparty_libraries(nnrt_cpp)
+nnrt_set_global_properties(nnrt_cpp)
+
+# ==================== set up NNRT Python binding library ============================
+
+set(PY_HEADER_FILES
+#    ${HEADER_FILES}
+)
+
+set(PY_SOURCE_FILES
+    main.cpp
+
+#    ${SOURCE_FILES}
+)
+
+pybind11_add_module(nnrt main.cpp
+    ${PY_HEADER_FILES}
+    ${PY_SOURCE_FILES}
+)
+
+target_include_directories(nnrt PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+
+target_link_libraries(nnrt PUBLIC nnrt_cpp)
 
 # Use `make pip-package` to create the pip package in the build directory
 add_custom_target(pip-package
@@ -78,17 +119,7 @@ if(PATH_TO_IDE_STUBS_FILE)
 endif()
 
 
-#add_custom_target(stubs-pip-package
-#    COMMAND ${PYTHON_EXECUTABLE} ${STUBS_PACKAGE_DST_DIR}/nnrt-stubs/setup.py bdist_wheel --dist-dir ${STUBS_PACKAGE_DST_DIR}
-#    COMMAND echo "pip wheel for stubs created at ${STUBS_PACKAGE_DST_DIR}"
-#    WORKING_DIRECTORY ${STUBS_PACKAGE_DST_DIR}
-#    DEPENDS python-stubs
-#)
-#add_custom_target(install-stubs-pip-package
-#    COMMAND ${CMAKE_COMMAND}
-#    -DPIP_PACKAGE_DST_DIR=${STUBS_PACKAGE_DST_DIR}
-#    -P ${CMAKE_CURRENT_SOURCE_DIR}/make_install_pip_package.cmake
-#    DEPENDS stubs-pip-package
-#)
+add_subdirectory(tests)
+
 
 

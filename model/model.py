@@ -302,8 +302,8 @@ class DeformNet(torch.nn.Module):
 
             num_nodes_i = num_nodes_vec[i]
             if num_nodes_i > opt.gn_max_nodes or num_nodes_i < opt.gn_min_nodes:
-                print("\tSolver failed: Invalid number of nodes: {0}".format(num_nodes_i))
-                convergence_info[i]["errors"].append("Solver failed: Invalid number of nodes: {0}".format(num_nodes_i))
+                print("\tSolver failed: Invalid number of canonical_node_positions: {0}".format(num_nodes_i))
+                convergence_info[i]["errors"].append("Solver failed: Invalid number of canonical_node_positions: {0}".format(num_nodes_i))
                 continue
 
             if not correspondences_exist[i]:
@@ -376,8 +376,8 @@ class DeformNet(torch.nn.Module):
                 num_matches = max_num_matches
 
             ###############################################################################################################
-            # Remove nodes if their corresponding clusters don't have enough correspondences
-            # (Correspondences that have "bad" nodes as anchors will also be removed)
+            # Remove canonical_node_positions if their corresponding clusters don't have enough correspondences
+            # (Correspondences that have "bad" canonical_node_positions as anchors will also be removed)
             ###############################################################################################################
             map_opt_nodes_to_complete_nodes_i = list(range(0, num_nodes_i))
             opt_num_nodes_i = num_nodes_i
@@ -410,10 +410,10 @@ class DeformNet(torch.nn.Module):
 
                     total_match_weights += match_weights
 
-                # we'll build a mask that stores which nodes will survive
+                # we'll build a mask that stores which canonical_node_positions will survive
                 valid_nodes_mask_i = torch.ones((num_nodes_i), dtype=torch.bool, device=x1.device)
 
-                # if not enough matches in a cluster, mark all cluster's nodes for removal
+                # if not enough matches in a cluster, mark all cluster's canonical_node_positions for removal
                 node_ids_for_removal = []
                 for cluster_id, cluster_match_weights in match_weights_per_cluster.items():
                     if opt.gn_debug:
@@ -427,15 +427,15 @@ class DeformNet(torch.nn.Module):
                     print("node_ids_for_removal", node_ids_for_removal)
 
                 if len(node_ids_for_removal) > 0:
-                    # Mark invalid nodes
+                    # Mark invalid canonical_node_positions
                     valid_nodes_mask_i[node_ids_for_removal] = False
 
-                    # Kepp only nodes and edges for valid nodes
+                    # Kepp only canonical_node_positions and edges for valid canonical_node_positions
                     graph_nodes_i = graph_nodes_i[valid_nodes_mask_i.squeeze()]
                     graph_edges_i = graph_edges_i[valid_nodes_mask_i.squeeze()]
                     graph_edges_weights_i = graph_edges_weights_i[valid_nodes_mask_i.squeeze()]
 
-                    # Update number of nodes
+                    # Update number of canonical_node_positions
                     opt_num_nodes_i = graph_nodes_i.shape[0]
 
                     # Get mask of correspondences for which any one of their anchors is an invalid node
@@ -470,8 +470,8 @@ class DeformNet(torch.nn.Module):
 
             if opt_num_nodes_i > opt.gn_max_nodes or opt_num_nodes_i < opt.gn_min_nodes:
                 if opt.gn_debug:
-                    print("\tSolver failed: Invalid number of nodes: {0}".format(opt_num_nodes_i))
-                convergence_info[i]["errors"].append("Solver failed: Invalid number of nodes: {0}".format(opt_num_nodes_i))
+                    print("\tSolver failed: Invalid number of canonical_node_positions: {0}".format(opt_num_nodes_i))
+                convergence_info[i]["errors"].append("Solver failed: Invalid number of canonical_node_positions: {0}".format(opt_num_nodes_i))
                 continue
 
             # Since source anchor ids need to be long in order to be used as indices,
@@ -511,7 +511,7 @@ class DeformNet(torch.nn.Module):
             t_current = torch.zeros((opt_num_nodes_i, 3, 1), dtype=x1.dtype, device=x1.device)
 
             if opt.gn_debug:
-                print("\tNum. matches: {0} || Num. nodes: {1} || Num. edges: {2}".format(num_matches, opt_num_nodes_i, num_edges_i))
+                print("\tNum. matches: {0} || Num. canonical_node_positions: {1} || Num. edges: {2}".format(num_matches, opt_num_nodes_i, num_edges_i))
 
             # Helper structures.
             data_increment_vec_0_3 = torch.arange(0, num_matches * 3, 3, out=torch.cuda.LongTensor(), device=x1.device)  # (num_matches)
