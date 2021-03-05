@@ -370,12 +370,9 @@ void backproject_depth_ushort(py::array_t<unsigned short>& image_in, py::array_t
 	int width = image_in.shape(1);
 	int height = image_in.shape(0);
 
-	//TODO: the convention for representing ordered point clouds ("point images") all-around this and other files
-	// should be changed such that the last dimension is 3, i.e. coordinate, since that yields performance benefits in most situations
-	// (i.e. a points coordinates are cached together when being processed by the CPU)
-	assert(point_image_out.shape(0) == 3);
-	assert(point_image_out.shape(1) == height);
-	assert(point_image_out.shape(2) == width);
+	assert(point_image_out.shape(0) == height);
+	assert(point_image_out.shape(1) == width);
+	assert(point_image_out.shape(2) == 3);
 
 	#pragma omp parallel for
 	for (int y = 0; y < height; y++) {
@@ -387,16 +384,16 @@ void backproject_depth_ushort(py::array_t<unsigned short>& image_in, py::array_t
 				float pos_y = depth * (static_cast<float>(y) - cy) / fy;
 				float pos_z = depth;
 
-				*point_image_out.mutable_data(0, y, x) = pos_x;
-				*point_image_out.mutable_data(1, y, x) = pos_y;
-				*point_image_out.mutable_data(2, y, x) = pos_z;
+				*point_image_out.mutable_data(y, x, 0) = pos_x;
+				*point_image_out.mutable_data(y, x, 1) = pos_y;
+				*point_image_out.mutable_data(y, x, 2) = pos_z;
 			}
 		}
 	}
 }
 
 py::array_t<float> backproject_depth_ushort(py::array_t<unsigned short>& image_in, float fx, float fy, float cx, float cy, float normalizer) {
-	py::array_t<float> point_image_out({static_cast<ssize_t>(3), image_in.shape(0), image_in.shape(1)});
+	py::array_t<float> point_image_out({image_in.shape(0), image_in.shape(1), static_cast<ssize_t>(3)});
 	memset(point_image_out.mutable_data(0, 0, 0), 0, point_image_out.size() * sizeof(float));
 	backproject_depth_ushort(image_in, point_image_out, fx, fy, cx, cy, normalizer);
 	return point_image_out;

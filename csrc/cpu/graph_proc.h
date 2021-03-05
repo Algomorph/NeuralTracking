@@ -43,8 +43,8 @@ py::array_t<int> compute_edges_geodesic(
 py::array_t<int> compute_edges_euclidean(const py::array_t<float>& node_positions, int max_neighbor_count);
 
 /**
- * For each input pixel it computes 4 nearest anchors, following graph edges.
- * It also compute skinning weights for every pixel.
+ * Compute four nearest anchors and their weights, following graph edges,
+ * for each input pixel.
  */
 void compute_pixel_anchors_geodesic(
 		const py::array_t<float>& graph_nodes,
@@ -54,6 +54,14 @@ void compute_pixel_anchors_geodesic(
 		float node_coverage,
 		py::array_t<int>& pixel_anchors,
 		py::array_t<float>& pixel_weights
+);
+
+py::tuple compute_pixel_anchors_geodesic(
+		const py::array_t<float>& graph_nodes,
+		const py::array_t<int>& graph_edges,
+		const py::array_t<float>& point_image,
+		int neighborhood_depth,
+		float node_coverage
 );
 
 

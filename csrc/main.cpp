@@ -35,14 +35,14 @@ PYBIND11_MODULE(nnrt, m) {
 			      py::array_t<unsigned short>&, py::array_t<float>&, float, float, float, float, float
 	      >(&image_proc::backproject_depth_ushort),
 	      "image_in"_a, "point_image_out"_a, "fx"_a, "fy"_a, "cx"_a, "cy"_a, "normalizer"_a,
-	      "Back-project depth image into 3D points. Stores output in point_image_out.");
+	      "Back-project depth image into 3D points. Stores output in point_image_out as array of shape (3, h, w).");
 
 	m.def("backproject_depth_ushort",
 	      py::overload_cast<
 			      py::array_t<unsigned short>&, float, float, float, float, float
 	      >(&image_proc::backproject_depth_ushort),
 	      "image_in"_a, "fx"_a, "fy"_a, "cx"_a, "cy"_a, "normalizer"_a,
-	      "Back-project depth image into 3D points. Returns output array.");
+	      "Back-project depth image into 3D points. Returns ordered point cloud as array of shape (3, h, w).");
 
 	m.def("backproject_depth_float", &image_proc::backproject_depth_float, "image_in"_a, "point_image_out"_a,
 	      "fx"_a, "fy"_a, "cx"_a, "cy"_a, "Back-project depth image into 3D points");
@@ -98,9 +98,20 @@ PYBIND11_MODULE(nnrt, m) {
 	      "The output is returned as an array of (node_count, max_neighbor_count), where row index represents a source node index and\n"
 	      "the row's entries, if >=0, represent destination node indices, ordered by euclidean distance between source and destination.");
 
-	m.def("compute_pixel_anchors_geodesic", &graph_proc::compute_pixel_anchors_geodesic,
+	m.def("compute_pixel_anchors_geodesic", py::overload_cast<const py::array_t<float>&,
+			const py::array_t<int>&, const py::array_t<float>&, int, float, py::array_t<int>&, py::array_t<float>&>(
+					&graph_proc::compute_pixel_anchors_geodesic),
 	      "graph_nodes"_a, "graph_edges"_a, "point_image"_a, "neighborhood_depth"_a, "node_coverage"_a,
 	      "pixel_anchors"_a, "pixel_weights"_a,
+	      "Computes anchor ids and skinning weights for every pixel using graph connectivity.\n"
+	      "Output pixel anchors array (height, width, K) contains indices of K graph canonical_node_positions that \n"
+	      "influence the corresponding point in the point_image. K is currently hard-coded to " STRINGIFY(GRAPH_K) ". \n"
+	      "\n The output pixel weights array of the same dimensions contains the corresponding node weights based "
+	      "\n on distance d from point to node: weight = e^( -d^(2) / (2*node_coverage^(2)) ).");
+	m.def("compute_pixel_anchors_geodesic", py::overload_cast<const py::array_t<float>&,
+			      const py::array_t<int>&, const py::array_t<float>&, int, float>(
+			&graph_proc::compute_pixel_anchors_geodesic),
+	      "graph_nodes"_a, "graph_edges"_a, "point_image"_a, "neighborhood_depth"_a, "node_coverage"_a,
 	      "Computes anchor ids and skinning weights for every pixel using graph connectivity.\n"
 	      "Output pixel anchors array (height, width, K) contains indices of K graph canonical_node_positions that \n"
 	      "influence the corresponding point in the point_image. K is currently hard-coded to " STRINGIFY(GRAPH_K) ". \n"

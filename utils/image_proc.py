@@ -335,7 +335,7 @@ def backproject_depth(depth_image, fx, fy, cx, cy, normalizer=1000.0):
     width = depth_image.shape[1]
     height = depth_image.shape[0]
 
-    point_image = np.zeros((3, height, width), dtype=np.float32)
+    point_image = np.zeros((height, width, 3), dtype=np.float32)
 
     if depth_image.dtype == np.float32:
         backproject_depth_float_c(depth_image, point_image, fx, fy, cx, cy)
@@ -345,20 +345,39 @@ def backproject_depth(depth_image, fx, fy, cx, cy, normalizer=1000.0):
     return point_image
 
 
-def compute_boundary_mask(depth_image, max_distance):
-    depth_image_copy = np.copy(depth_image)
+def compute_boundary_mask(point_image: np.ndarray, max_distance: float) -> np.ndarray:
+    """
+    Resulting mask filters out points where either:
+        distance between pixel-wise left & right neighbors exceeds max_distance
+        - or -
+        distance between pixel-wise above & below neighbors exceeds max_distance.
 
-    boundary_mask = np.zeros(depth_image_copy.shape, dtype=bool)
+    In the following diagram, a, b, c, d, and e are pixel-neighboring points.
 
-    shift_right = np.zeros_like(depth_image_copy)
-    shift_left = np.zeros_like(depth_image_copy)
-    shift_down = np.zeros_like(depth_image_copy)
-    shift_up = np.zeros_like(depth_image_copy)
+           [d]
+            ||
+    [a] == [b] == [c]
+            ||
+           [e]
+    If dist(x,y) yields distance between point x & y and coord(x) gives
+    the pixel-coordinate of point x:
 
-    shift_right[:, 1:, :] = depth_image_copy[:, :-1, :]
-    shift_left[:, :-1, :] = depth_image_copy[:, 1:, :]
-    shift_down[1:, :, :] = depth_image_copy[:-1, :, :]
-    shift_up[:-1, :, :] = depth_image_copy[1:, :, :]
+    mask[coord[b]] = dist(a,c) > max_distance | dist(e,d) > max_distance
+
+    :param point_image: input point image
+    :param max_distance: maximum distance threshold
+    :return: binary mask based on the distances, as described above
+    """
+    shift_right = np.zeros_like(point_image)
+    shift_left = np.zeros_like(point_image)
+    shift_down = np.zeros_like(point_image)
+    shift_up = np.zeros_like(point_image)
+
+    # points shifted to the right (x-1)
+    shift_right[:, 1:, :] = point_image[:, :-1, :]
+    shift_left[:, :-1, :] = point_image[:, 1:, :]
+    shift_down[1:, :, :] = point_image[:-1, :, :]
+    shift_up[:-1, :, :] = point_image[1:, :, :]
 
     horizontal_dist = np.linalg.norm(shift_left - shift_right, axis=2)
     vertical_dist = np.linalg.norm(shift_up - shift_down, axis=2)

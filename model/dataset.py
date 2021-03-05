@@ -135,19 +135,10 @@ class DeformDataset(Dataset):
         return self.labels[index]
 
     @staticmethod
-    def load_image(
-            color_image_path, depth_image_path,
-            intrinsics, input_height, input_width, cropper=None,
-            max_boundary_dist=0.1, compute_boundary_mask=False
-    ):
-        # Load images.
-        color_image = io.imread(color_image_path)  # (h, w, 3)
-        depth_image = io.imread(depth_image_path)  # (h, w)
-
+    def prepare_pytorch_input(color_image, depth_image, intrinsics, input_height, input_width, cropper=None,
+                              max_boundary_dist=0.1, compute_boundary_mask=False):
         # Backproject depth image.
         depth_image = image_proc.backproject_depth(depth_image, intrinsics["fx"], intrinsics["fy"], intrinsics["cx"], intrinsics["cy"])  # (3, h, w)
-        depth_image = depth_image.astype(np.float32)
-        depth_image = np.moveaxis(depth_image, 0, -1)  # (h, w, 3)
 
         image_size = color_image.shape[:2]
 
@@ -158,7 +149,8 @@ class DeformDataset(Dataset):
         color_image = cropper(color_image)
         depth_image = cropper(depth_image)
 
-        # Construct the final image.
+        # Construct the final image by converting uint RGB to float RGB
+        # and stitching RGB+XYZ in the first axis.
         image = np.zeros((6, input_height, input_width), dtype=np.float32)
 
         image[:3, :, :] = np.moveaxis(color_image, -1, 0) / 255.0  # (3, h, w)
@@ -171,6 +163,18 @@ class DeformDataset(Dataset):
             assert max_boundary_dist
             boundary_mask = image_proc.compute_boundary_mask(depth_image, max_boundary_dist)
             return image, boundary_mask, cropper
+
+    @staticmethod
+    def load_image(
+            color_image_path, depth_image_path,
+            intrinsics, input_height, input_width, cropper=None,
+            max_boundary_dist=0.1, compute_boundary_mask=False):
+        # Load images.
+        color_image = io.imread(color_image_path)  # (h, w, 3)
+        depth_image = io.imread(depth_image_path)  # (h, w)
+        return DeformDataset.prepare_pytorch_input(
+            color_image, depth_image, intrinsics, input_height, input_width, cropper,
+            max_boundary_dist, compute_boundary_mask)
 
     @staticmethod
     def load_flow(optical_flow_image_path, scene_flow_image_path, cropper):
@@ -212,7 +216,8 @@ class DeformDataset(Dataset):
 
     @staticmethod
     def load_graph_data(
-            graph_nodes_path, graph_edges_path, graph_edges_weights_path, graph_node_deformations_path, graph_clusters_path,
+            graph_nodes_path, graph_edges_path, graph_edges_weights_path,
+            graph_node_deformations_path, graph_clusters_path,
             pixel_anchors_path, pixel_weights_path, cropper
     ):
         # Load data.

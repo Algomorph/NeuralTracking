@@ -82,35 +82,38 @@ def find_knn_graph_connected_components(knn_edges: np.ndarray) -> np.ndarray:
 
 class DeformationGraph:
     def __init__(self, canonical_node_positions: np.ndarray, edges: np.ndarray, clusters: np.ndarray):
-        self._canonical_node_positions = canonical_node_positions
-        self._edges = edges
-        self._clusters = clusters
-        self._live_node_positions = canonical_node_positions.copy()
+        self.canonical_node_positions = canonical_node_positions
+        self.edges = edges
+        self.edge_weights = np.ones_like(edges, dtype=np.float32)
+        self.clusters = clusters
+        self.live_node_positions = canonical_node_positions.copy()
 
     def get_extent_canonical(self):
-        return self._canonical_node_positions.max(axis=0), self._canonical_node_positions.min(axis=0)
+        return self.canonical_node_positions.max(axis=0), self.canonical_node_positions.min(axis=0)
 
     def as_line_set_canonical(self):
-        return knn_graph_to_line_set(self._canonical_node_positions, self._edges, self._clusters)
+        return knn_graph_to_line_set(self.canonical_node_positions, self.edges, self.clusters)
 
     def as_line_set_live(self):
-        return knn_graph_to_line_set(self._live_node_positions, self._edges, self._clusters)
+        return knn_graph_to_line_set(self.live_node_positions, self.edges, self.clusters)
 
 
-def build_deformation_graph_from_mesh(mesh: o3d.geometry.TriangleMesh) -> DeformationGraph:
+def build_deformation_graph_from_mesh(mesh: o3d.geometry.TriangleMesh, max_point_to_node_distance: float) -> DeformationGraph:
     vertex_positions = np.array(mesh.vertices)
     triangle_vertex_indices = np.array(mesh.triangles)
 
     # === Build deformation graph ===
 
     erosion_mask = nnrt.get_vertex_erosion_mask(vertex_positions, triangle_vertex_indices, 1, 3)
-    node_positions, node_vertex_indices = nnrt.sample_nodes(vertex_positions, erosion_mask, 0.05, True)
+    node_positions, node_vertex_indices = nnrt.sample_nodes(vertex_positions, erosion_mask, max_point_to_node_distance, True)
     edges = nnrt.compute_edges_geodesic(vertex_positions, triangle_vertex_indices, node_vertex_indices, 4, 0.5)
     clusters = find_knn_graph_connected_components(knn_edges=edges)
     return DeformationGraph(node_positions, edges, clusters)
 
 
-def build_deformation_graph_from_depth_image(depth_image: o3d.geometry.Image, intrinsics: o3d.camera.PinholeCameraIntrinsic) -> DeformationGraph:
+def build_deformation_graph_from_depth_image(depth_image: o3d.geometry.Image,
+                                             intrinsics: o3d.camera.PinholeCameraIntrinsic,
+                                             downsampling_factor: int) -> DeformationGraph:
     fx, fy, cx, cy = camera.extract_intrinsic_projection_parameters(intrinsics)
 
     depth_image_numpy = np.array(depth_image)
@@ -120,8 +123,8 @@ def build_deformation_graph_from_depth_image(depth_image: o3d.geometry.Image, in
 
     node_positions, edges, pixel_anchors, pixel_weights = \
         nnrt.construct_regular_graph(point_image,
-                                     depth_image_numpy.shape[1] // 2,
-                                     depth_image_numpy.shape[0] // 2,
+                                     depth_image_numpy.shape[1] // downsampling_factor,
+                                     depth_image_numpy.shape[0] // downsampling_factor,
                                      2.0, 0.05, 3.0)
     clusters = find_knn_graph_connected_components(knn_edges=edges)
     return DeformationGraph(node_positions, edges, clusters)

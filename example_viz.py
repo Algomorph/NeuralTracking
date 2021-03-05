@@ -9,17 +9,14 @@ from utils import image_proc
 from model.model import DeformNet
 from model import dataset
 
-import utils.utils as utils
 import utils.visualization.coordinate_transformations as viz_utils
 import utils.mesh_utils as mesh_utils
-import utils.nnutils as nnutils
 import utils.visualization.line_mesh as line_mesh_utils
 import utils.visualization.viewer as viewer
 import options as opt
 
 
 def main():
-
     #####################################################################################################
     # Options
     #####################################################################################################
@@ -29,8 +26,8 @@ def main():
     split = "test"
     seq_id = 17
 
-    src_id = 300 # source frame
-    tgt_id = 600 # target frame
+    src_id = 300  # source frame
+    tgt_id = 600  # target frame
 
     srt_tgt_str = "5dbd7c9104df0300f329f294_shirt_000300_000600_geodesic_0.05"
 
@@ -48,7 +45,7 @@ def main():
 
     # We will overwrite the default value in options.py / settings.py
     opt.use_mask = True
-    
+
     #####################################################################################################
     # Load model
     #####################################################################################################
@@ -73,7 +70,7 @@ def main():
             # 1. filter out unnecessary keys
             pretrained_dict = {k: v for k, v in pretrained_dict.items() if "flow_net" in k}
             # 2. overwrite entries in the existing state dict
-            model_dict.update(pretrained_dict) 
+            model_dict.update(pretrained_dict)
             # 3. load the new state dict
             model.load_state_dict(model_dict)
         else:
@@ -85,25 +82,25 @@ def main():
     #####################################################################################################
     # Load example dataset
     #####################################################################################################
-    example_dir = os.path.join("example_data" , f"{split}/seq{str(seq_id).zfill(3)}")
+    example_dir = os.path.join("example_data", f"{split}/seq{str(seq_id).zfill(3)}")
 
     image_height = opt.image_height
-    image_width  = opt.image_width
+    image_width = opt.image_width
     max_boundary_dist = opt.max_boundary_dist
 
     src_id_str = str(src_id).zfill(6)
     tgt_id_str = str(tgt_id).zfill(6)
 
-    src_color_image_path         = os.path.join(example_dir, "color",                   src_id_str + ".jpg")
-    src_depth_image_path         = os.path.join(example_dir, "depth",                   src_id_str + ".png")
-    tgt_color_image_path         = os.path.join(example_dir, "color",                   tgt_id_str + ".jpg")
-    tgt_depth_image_path         = os.path.join(example_dir, "depth",                   tgt_id_str + ".png")
-    graph_nodes_path             = os.path.join(example_dir, "graph_nodes",             srt_tgt_str + ".bin")
-    graph_edges_path             = os.path.join(example_dir, "graph_edges",             srt_tgt_str + ".bin")
-    graph_edges_weights_path     = os.path.join(example_dir, "graph_edges_weights",     srt_tgt_str + ".bin")
-    graph_clusters_path          = os.path.join(example_dir, "graph_clusters",          srt_tgt_str + ".bin")
-    pixel_anchors_path           = os.path.join(example_dir, "pixel_anchors",           srt_tgt_str + ".bin")
-    pixel_weights_path           = os.path.join(example_dir, "pixel_weights",           srt_tgt_str + ".bin")
+    src_color_image_path = os.path.join(example_dir, "color", src_id_str + ".jpg")
+    src_depth_image_path = os.path.join(example_dir, "depth", src_id_str + ".png")
+    tgt_color_image_path = os.path.join(example_dir, "color", tgt_id_str + ".jpg")
+    tgt_depth_image_path = os.path.join(example_dir, "depth", tgt_id_str + ".png")
+    graph_nodes_path = os.path.join(example_dir, "graph_nodes", srt_tgt_str + ".bin")
+    graph_edges_path = os.path.join(example_dir, "graph_edges", srt_tgt_str + ".bin")
+    graph_edges_weights_path = os.path.join(example_dir, "graph_edges_weights", srt_tgt_str + ".bin")
+    graph_clusters_path = os.path.join(example_dir, "graph_clusters", srt_tgt_str + ".bin")
+    pixel_anchors_path = os.path.join(example_dir, "pixel_anchors", srt_tgt_str + ".bin")
+    pixel_weights_path = os.path.join(example_dir, "pixel_weights", srt_tgt_str + ".bin")
 
     # Source color and depth
     source, _, cropper = dataset.DeformDataset.load_image(
@@ -117,16 +114,17 @@ def main():
     )
 
     # Graph
-    graph_nodes, graph_edges, graph_edges_weights, _, graph_clusters, pixel_anchors, pixel_weights = dataset.DeformDataset.load_graph_data(
-        graph_nodes_path, graph_edges_path, graph_edges_weights_path, None, 
-        graph_clusters_path, pixel_anchors_path, pixel_weights_path, cropper
-    )
+    graph_nodes, graph_edges, graph_edges_weights, _, graph_clusters, pixel_anchors, pixel_weights = \
+        dataset.DeformDataset.load_graph_data(
+            graph_nodes_path, graph_edges_path, graph_edges_weights_path, None,
+            graph_clusters_path, pixel_anchors_path, pixel_weights_path, cropper
+        )
 
     num_nodes = np.array(graph_nodes.shape[0], dtype=np.int64)
 
     # Update intrinsics to reflect the crops
     fx, fy, cx, cy = image_proc.modify_intrinsics_due_to_cropping(
-        intrinsics['fx'], intrinsics['fy'], intrinsics['cx'], intrinsics['cy'], 
+        intrinsics['fx'], intrinsics['fy'], intrinsics['cx'], intrinsics['cy'],
         image_height, image_width, original_h=cropper.h, original_w=cropper.w
     )
 
@@ -141,44 +139,44 @@ def main():
     #####################################################################################################
 
     # Move to device and unsqueeze in the batch dimension (to have batch size 1)
-    source_cuda               = torch.from_numpy(source).cuda().unsqueeze(0)
-    target_cuda               = torch.from_numpy(target).cuda().unsqueeze(0)
+    source_cuda = torch.from_numpy(source).cuda().unsqueeze(0)
+    target_cuda = torch.from_numpy(target).cuda().unsqueeze(0)
     target_boundary_mask_cuda = torch.from_numpy(target_boundary_mask).cuda().unsqueeze(0)
-    graph_nodes_cuda          = torch.from_numpy(graph_nodes).cuda().unsqueeze(0)
-    graph_edges_cuda          = torch.from_numpy(graph_edges).cuda().unsqueeze(0)
-    graph_edges_weights_cuda  = torch.from_numpy(graph_edges_weights).cuda().unsqueeze(0)
-    graph_clusters_cuda       = torch.from_numpy(graph_clusters).cuda().unsqueeze(0)
-    pixel_anchors_cuda        = torch.from_numpy(pixel_anchors).cuda().unsqueeze(0)
-    pixel_weights_cuda        = torch.from_numpy(pixel_weights).cuda().unsqueeze(0)
-    intrinsics_cuda           = torch.from_numpy(intrinsics).cuda().unsqueeze(0)
+    graph_nodes_cuda = torch.from_numpy(graph_nodes).cuda().unsqueeze(0)
+    graph_edges_cuda = torch.from_numpy(graph_edges).cuda().unsqueeze(0)
+    graph_edges_weights_cuda = torch.from_numpy(graph_edges_weights).cuda().unsqueeze(0)
+    graph_clusters_cuda = torch.from_numpy(graph_clusters).cuda().unsqueeze(0)
+    pixel_anchors_cuda = torch.from_numpy(pixel_anchors).cuda().unsqueeze(0)
+    pixel_weights_cuda = torch.from_numpy(pixel_weights).cuda().unsqueeze(0)
+    intrinsics_cuda = torch.from_numpy(intrinsics).cuda().unsqueeze(0)
 
-    num_nodes_cuda            = torch.from_numpy(num_nodes).cuda().unsqueeze(0)
+    num_nodes_cuda = torch.from_numpy(num_nodes).cuda().unsqueeze(0)
 
     with torch.no_grad():
         model_data = model(
-            source_cuda, target_cuda, 
-            graph_nodes_cuda, graph_edges_cuda, graph_edges_weights_cuda, graph_clusters_cuda, 
-            pixel_anchors_cuda, pixel_weights_cuda, 
-            num_nodes_cuda, intrinsics_cuda, 
+            source_cuda, target_cuda,
+            graph_nodes_cuda, graph_edges_cuda, graph_edges_weights_cuda, graph_clusters_cuda,
+            pixel_anchors_cuda, pixel_weights_cuda,
+            num_nodes_cuda, intrinsics_cuda,
             evaluate=True, split="test"
         )
 
     # Get some of the results
-    rotations_pred    = model_data["node_rotations"].view(num_nodes, 3, 3).cpu().numpy()
+    rotations_pred = model_data["node_rotations"].view(num_nodes, 3, 3).cpu().numpy()
     translations_pred = model_data["node_translations"].view(num_nodes, 3).cpu().numpy()
-    
+
     mask_pred = model_data["mask_pred"]
     assert mask_pred is not None, "Make sure use_mask=True in options.py"
     mask_pred = mask_pred.view(-1, opt.image_height, opt.image_width).cpu().numpy()
 
     # Compute mask gt for mask baseline
     _, source_points, valid_source_points, target_matches, \
-        valid_target_matches, valid_correspondences, _, \
-            _ = model_data["correspondence_info"]
+    valid_target_matches, valid_correspondences, _, \
+    _ = model_data["correspondence_info"]
 
-    target_matches        = target_matches.view(-1, opt.image_height, opt.image_width).cpu().numpy()
-    valid_source_points   = valid_source_points.view(-1, opt.image_height, opt.image_width).cpu().numpy()
-    valid_target_matches  = valid_target_matches.view(-1, opt.image_height, opt.image_width).cpu().numpy()
+    target_matches = target_matches.view(-1, opt.image_height, opt.image_width).cpu().numpy()
+    valid_source_points = valid_source_points.view(-1, opt.image_height, opt.image_width).cpu().numpy()
+    valid_target_matches = valid_target_matches.view(-1, opt.image_height, opt.image_width).cpu().numpy()
     valid_correspondences = valid_correspondences.view(-1, opt.image_height, opt.image_width).cpu().numpy()
 
     deformed_graph_nodes = graph_nodes + translations_pred
@@ -213,7 +211,7 @@ def main():
     source_pcd.colors = o3d.utility.Vector3dVector(source_colors)
 
     # keep only object using the mask
-    valid_source_mask = np.moveaxis(valid_source_points, 0, -1).reshape(-1).astype(np.bool)
+    valid_source_mask = np.moveaxis(valid_source_points, 0, -1).reshape(-1).astype(bool)
     valid_source_points = source_points[valid_source_mask, :]
     valid_source_colors = source_colors[valid_source_mask, :]
     # source object PointCloud
@@ -244,7 +242,7 @@ def main():
     # warped PointCloud
     warped_pcd = o3d.geometry.PointCloud()
     warped_pcd.points = o3d.utility.Vector3dVector(warped_points)
-    warped_pcd.paint_uniform_color([1, 0.706, 0]) # warped_pcd.colors = o3d.utility.Vector3dVector(warped_colors)
+    warped_pcd.paint_uniform_color([1, 0.706, 0])  # warped_pcd.colors = o3d.utility.Vector3dVector(warped_colors)
 
     # o3d.visualization.draw_geometries([source_object_pcd, warped_pcd])
 
@@ -265,7 +263,7 @@ def main():
     ####################################
     # GRAPH #
     ####################################
-    
+
     # Transform to OpenGL coords
     graph_nodes = viz_utils.transform_pointcloud_to_opengl_coords(graph_nodes)
     deformed_graph_nodes = viz_utils.transform_pointcloud_to_opengl_coords(deformed_graph_nodes)
@@ -278,7 +276,7 @@ def main():
         mesh_sphere.paint_uniform_color([1.0, 0.0, 0.0])
         mesh_sphere.translate(node)
         rendered_graph_nodes.append(mesh_sphere)
-    
+
     # Merge all different sphere meshes
     rendered_graph_nodes = mesh_utils.merge_meshes(rendered_graph_nodes)
 
@@ -288,7 +286,7 @@ def main():
         for neighbor_id in edges:
             if neighbor_id == -1:
                 break
-            edges_pairs.append([node_id, neighbor_id])    
+            edges_pairs.append([node_id, neighbor_id])
 
     colors = [[0.2, 1.0, 0.2] for i in range(len(edges_pairs))]
     line_mesh = line_mesh_utils.LineMesh(graph_nodes, edges_pairs, colors, radius=0.003)
@@ -306,7 +304,7 @@ def main():
     # Mask
     ####################################
     mask_pred_flat = mask_pred.reshape(-1)
-    valid_correspondences = valid_correspondences.reshape(-1).astype(np.bool)
+    valid_correspondences = valid_correspondences.reshape(-1).astype(bool)
 
     ####################################
     # Correspondences
@@ -319,9 +317,9 @@ def main():
     # "Good" matches
     ################################
     good_mask = valid_correspondences & (mask_pred_flat >= weight_thr)
-    good_source_points_corresp  = source_points[good_mask]
+    good_source_points_corresp = source_points[good_mask]
     good_target_matches_corresp = target_matches[good_mask]
-    good_mask_pred              = mask_pred_flat[good_mask]
+    good_mask_pred = mask_pred_flat[good_mask]
 
     # number of good matches
     n_good_matches = good_source_points_corresp.shape[0]
@@ -330,16 +328,16 @@ def main():
     if subsample:
         N = 2000
         sampled_idxs = np.random.permutation(n_good_matches)[:N]
-        good_source_points_corresp  = good_source_points_corresp[sampled_idxs]
+        good_source_points_corresp = good_source_points_corresp[sampled_idxs]
         good_target_matches_corresp = good_target_matches_corresp[sampled_idxs]
-        good_mask_pred              = good_mask_pred[sampled_idxs]
+        good_mask_pred = good_mask_pred[sampled_idxs]
         n_good_matches = N
     # both good_source and good_target points together into one vector
     good_matches_points = np.concatenate([good_source_points_corresp, good_target_matches_corresp], axis=0)
     good_matches_lines = [[i, i + n_good_matches] for i in range(0, n_good_matches, 1)]
 
     # --> Create good (unweighted) lines 
-    good_matches_colors = [[201/255, 177/255, 14/255] for i in range(len(good_matches_lines))]
+    good_matches_colors = [[201 / 255, 177 / 255, 14 / 255] for i in range(len(good_matches_lines))]
     good_matches_set = o3d.geometry.LineSet(
         points=o3d.utility.Vector3dVector(good_matches_points),
         lines=o3d.utility.Vector2iVector(good_matches_lines),
@@ -365,14 +363,13 @@ def main():
     )
     good_weighted_matches_set.colors = o3d.utility.Vector3dVector(good_weighted_matches_colors)
 
-
     ################################
     # "Bad" matches
     ################################
     bad_mask = valid_correspondences & (mask_pred_flat < weight_thr)
-    bad_source_points_corresp  = source_points[bad_mask]
+    bad_source_points_corresp = source_points[bad_mask]
     bad_target_matches_corresp = target_matches[bad_mask]
-    bad_mask_pred              = mask_pred_flat[bad_mask]
+    bad_mask_pred = mask_pred_flat[bad_mask]
 
     # number of good matches
     n_bad_matches = bad_source_points_corresp.shape[0]
@@ -382,7 +379,7 @@ def main():
     bad_matches_lines = [[i, i + n_bad_matches] for i in range(0, n_bad_matches, 1)]
 
     # --> Create bad (unweighted) lines 
-    bad_matches_colors = [[201/255, 177/255, 14/255] for i in range(len(bad_matches_lines))]
+    bad_matches_colors = [[201 / 255, 177 / 255, 14 / 255] for i in range(len(bad_matches_lines))]
     bad_matches_set = o3d.geometry.LineSet(
         points=o3d.utility.Vector3dVector(bad_matches_points),
         lines=o3d.utility.Vector2iVector(bad_matches_lines),
@@ -421,24 +418,24 @@ def main():
     # Draw 
     ####################################
     geometry_dict = {
-        "source_pcd": source_pcd, 
-        "source_obj": source_object_pcd, 
-        "target_pcd": target_pcd, 
-        "graph":      rendered_graph
+        "source_pcd": source_pcd,
+        "source_obj": source_object_pcd,
+        "target_pcd": target_pcd,
+        "graph": rendered_graph
         # "deformed_graph":    rendered_deformed_graph
     }
 
     alignment_dict = {
         "valid_source_points": valid_source_points,
-        "line_segments_unit":  line_segments_unit,
-        "line_lengths":        line_lengths
+        "line_segments_unit": line_segments_unit,
+        "line_lengths": line_lengths
     }
 
     matches_dict = {
-        "good_matches_set":          good_matches_set,
+        "good_matches_set": good_matches_set,
         "good_weighted_matches_set": good_weighted_matches_set,
-        "bad_matches_set":           bad_matches_set,
-        "bad_weighted_matches_set":  bad_weighted_matches_set
+        "bad_matches_set": bad_matches_set,
+        "bad_weighted_matches_set": bad_weighted_matches_set
     }
 
     #####################################################################################################
@@ -448,7 +445,7 @@ def main():
         geometry_dict, alignment_dict, matches_dict
     )
     manager.custom_draw_geometry_with_key_callback()
-    
+
 
 if __name__ == "__main__":
     main()

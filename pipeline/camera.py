@@ -21,3 +21,25 @@ def extract_intrinsic_projection_parameters(intrinsics: o3d.camera.PinholeCamera
     cx = intrinsics.intrinsic_matrix[0, 2]
     cy = intrinsics.intrinsic_matrix[1, 2]
     return fx, fy, cx, cy
+
+
+def intrinsic_projection_parameters_as_dict(intrinsics: o3d.camera.PinholeCameraIntrinsic) -> dict:
+    fx = intrinsics.intrinsic_matrix[0, 0]
+    fy = intrinsics.intrinsic_matrix[1, 1]
+    cx = intrinsics.intrinsic_matrix[0, 2]
+    cy = intrinsics.intrinsic_matrix[1, 2]
+    intrinsics = {
+        "fx": fx,
+        "fy": fy,
+        "cx": cx,
+        "cy": cy
+    }
+    return intrinsics
+
+
+def print_intrinsic_projection_parameters(intrinsics: o3d.camera.PinholeCameraIntrinsic) -> None:
+    fx = intrinsics.intrinsic_matrix[0, 0]
+    fy = intrinsics.intrinsic_matrix[1, 1]
+    cx = intrinsics.intrinsic_matrix[0, 2]
+    cy = intrinsics.intrinsic_matrix[1, 2]
+    print("Intrinsics: \nfx={:f}\nfy={:f}\ncx={:f}\ncy={:f}".format(fx, fy, cx, cy))

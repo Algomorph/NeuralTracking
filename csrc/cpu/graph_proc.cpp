@@ -366,14 +366,22 @@ void compute_pixel_anchors_geodesic(
 ) {
 	int node_count = graph_nodes.shape(0);
 	int neighbor_count = graph_edges.shape(1);
-	int width = point_image.shape(2);
-	int height = point_image.shape(1);
+	int width = point_image.shape(1);
+	int height = point_image.shape(0);
+	assert(point_image.ndim() == 3);
+	assert(point_image.shape(2) == 0);
 
-	// Allocate graph node ids and corresponding skinning weights.
+	// Allocate graph node ids and corresponding skinning weights if needed.
+	auto resize_if_needed = [&height, &width](auto& output_array) {
+		if (output_array.ndim() != 3 || output_array.shape(0) != height
+		    || output_array.shape(1) != width || output_array.shape(2) != GRAPH_K) {
+			output_array.resize({height, width, GRAPH_K}, false);
+		}
+	};
+	resize_if_needed(pixel_anchors);
+	resize_if_needed(pixel_weights);
+
 	// Initialize with invalid anchors.
-	pixel_anchors.resize({height, width, GRAPH_K}, false);
-	pixel_weights.resize({height, width, GRAPH_K}, false);
-
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
 			for (int k = 0; k < GRAPH_K; k++) {
@@ -388,7 +396,11 @@ void compute_pixel_anchors_geodesic(
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
 			// Query 3d pixel position.
-			Eigen::Vector3f pixel_position(*point_image.data(0, y, x), *point_image.data(1, y, x), *point_image.data(2, y, x));
+			Eigen::Vector3f pixel_position(
+					*point_image.data(y, x, 0),
+					*point_image.data(y, x, 1),
+					*point_image.data(y, x, 2)
+			);
 			if (pixel_position.z() <= 0) continue;
 
 			// Find nearest Euclidean graph node.
@@ -486,9 +498,13 @@ void compute_pixel_anchors_geodesic(
 			int anchor_count = nearest_geodesic_node_ids.size();
 
 			if (weight_sum > 0) {
-				for (int i = 0; i < anchor_count; i++) skinning_weights[i] /= weight_sum;
+				for (int anchor_index = 0; anchor_index < anchor_count; anchor_index++) {
+					skinning_weights[anchor_index] /= weight_sum;
+				}
 			} else if (anchor_count > 0) {
-				for (int i = 0; i < anchor_count; i++) skinning_weights[i] = 1.f / static_cast<float>(anchor_count);
+				for (int anchor_index = 0; anchor_index < anchor_count; anchor_index++) {
+					skinning_weights[anchor_index] = 1.f / static_cast<float>(anchor_count);
+				}
 			}
 
 			// Store the results.
@@ -498,6 +514,19 @@ void compute_pixel_anchors_geodesic(
 			}
 		}
 	}
+}
+
+py::tuple compute_pixel_anchors_geodesic(
+		const py::array_t<float>& graph_nodes,
+		const py::array_t<int>& graph_edges,
+		const py::array_t<float>& point_image,
+		int neighborhood_depth,
+		float node_coverage){
+	py::array_t<int> pixel_anchors;
+	py::array_t<float> pixel_weights;
+	compute_pixel_anchors_geodesic(graph_nodes, graph_edges, point_image, neighborhood_depth,
+	                               node_coverage, pixel_anchors, pixel_weights);
+	return py::make_tuple(pixel_anchors, pixel_weights);
 }
 
 void compute_pixel_anchors_euclidean(
