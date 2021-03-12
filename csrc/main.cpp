@@ -118,6 +118,16 @@ PYBIND11_MODULE(nnrt, m) {
 	      "\n The output pixel weights array of the same dimensions contains the corresponding node weights based "
 	      "\n on distance d from point to node: weight = e^( -d^(2) / (2*node_coverage^(2)) ).");
 
+	m.def("compute_pixel_anchors_geodesic_old",
+			&graph_proc::compute_pixel_anchors_geodesic_old,
+	      "graph_nodes"_a, "graph_edges"_a, "point_image"_a, "neighborhood_depth"_a, "node_coverage"_a,
+	      "pixel_anchors"_a, "pixel_weights"_a,
+	      "Computes anchor ids and skinning weights for every pixel using graph connectivity.\n"
+	      "Output pixel anchors array (height, width, K) contains indices of K graph canonical_node_positions that \n"
+	      "influence the corresponding point in the point_image. K is currently hard-coded to " STRINGIFY(GRAPH_K) ". \n"
+	      "\n The output pixel weights array of the same dimensions contains the corresponding node weights based "
+	      "\n on distance d from point to node: weight = e^( -d^(2) / (2*node_coverage^(2)) ).");
+
 	m.def("compute_pixel_anchors_euclidean", &graph_proc::compute_pixel_anchors_euclidean,
 	      "graph_nodes"_a, "point_image"_a, "node_coverage"_a, "pixel_anchors"_a, "pixel_weights"_a,
 	      "Computes anchor ids and skinning weights for every pixel using Euclidean distances.\n"

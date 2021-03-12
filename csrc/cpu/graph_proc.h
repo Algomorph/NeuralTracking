@@ -64,6 +64,17 @@ py::tuple compute_pixel_anchors_geodesic(
 		float node_coverage
 );
 
+//TODO: remove
+void compute_pixel_anchors_geodesic_old(
+		const py::array_t<float>& graphNodes,
+		const py::array_t<int>& graphEdges,
+		const py::array_t<float>& pointImage,
+		int neighborhoodDepth,
+		float nodeCoverage,
+		py::array_t<int>& pixelAnchors,
+		py::array_t<float>& pixelWeights
+);
+
 
 /**
  * For each input pixel it computes 4 nearest anchors, using Euclidean distances.

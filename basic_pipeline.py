@@ -1,17 +1,22 @@
 #!/usr/bin/python3
 
-import torch
+# stdlib
 import os
 import sys
-import numpy as np
-import open3d as o3d
 import re
 import enum
-import options as opt
-import pipeline.camera as camera
-import model.dataset as dataset
-import nnrt
 
+# 3rd-party
+import numpy as np
+import open3d as o3d
+import torch
+
+# local
+import options as opt
+import nnrt
+from pipeline import camera
+from model import dataset
+from utils import image_proc
 from model.model import DeformNet
 from pipeline import graph
 
@@ -47,6 +52,13 @@ class DatasetPreset(enum.Enum):
 
 
 def main() -> None:
+    #####################################################################################################
+    # Options
+    #####################################################################################################
+
+    # We will overwrite the default value in options.py / settings.py
+    opt.use_mask = True
+
     #####################################################################################################
     # Load model
     #####################################################################################################
@@ -118,7 +130,6 @@ def main() -> None:
     intrinsics_dict = camera.intrinsic_projection_parameters_as_dict(intrinsics_open3d_cpu)
     camera.print_intrinsic_projection_parameters(intrinsics_open3d_cpu)
 
-    intrinsics_numpy = np.array([fx, fy, cx, cy], dtype=np.float32)
     intrinsics_open3d_gpu = o3d.core.Tensor(intrinsics_open3d_cpu.intrinsic_matrix, o3d.core.Dtype.Float32, device)
 
     extrinsics = np.array([[1.0, 0.0, 0.0, 0],
@@ -150,6 +161,8 @@ def main() -> None:
 
     previous_color_image = None
 
+    deformation_graph: graph.DeformationGraph|None = None
+
     for frame_index in range(0, frame_count):
         #####################################################################################################
         # grab images, transfer to GPU versions for Open3D
@@ -164,8 +177,6 @@ def main() -> None:
         color_image_open3d_legacy = o3d.io.read_image(color_image_path)
         color_image = np.array(color_image_open3d_legacy)
 
-        deformation_graph = None
-
         if frame_index == 0:
             depth_image_gpu: o3d.t.geometry.Image = o3d.t.geometry.Image.from_legacy_image(depth_image_open3d_legacy, device=device)
             color_image_gpu: o3d.t.geometry.Image = o3d.t.geometry.Image.from_legacy_image(color_image_open3d_legacy, device=device)
@@ -174,12 +185,12 @@ def main() -> None:
             mesh.compute_vertex_normals()
 
             # === Construct initial deformation graph
-            deformation_graph: graph.DeformationGraph = graph.build_deformation_graph_from_mesh(mesh, 0.025)
+            deformation_graph = graph.build_deformation_graph_from_mesh(mesh, 0.05)
             # uncomment to construct from image instead
             # deformation_graph = graph.build_deformation_graph_from_depth_image(point_image, intrinsics, 16)
 
             # uncomment to visualize KNN graph with background image (no mesh) (deformation graph)
-            graph.draw_deformation_graph(deformation_graph, color_image_open3d_legacy)
+            # graph.draw_deformation_graph(deformation_graph, color_image_open3d_legacy)
 
             # uncomment to visualize isosurface + KNN graph
             # knn_graph = graph.knn_graph_to_line_set(canonical_node_positions, edges, clusters)
@@ -197,6 +208,7 @@ def main() -> None:
             )
             target, target_boundary_mask, _ = dataset.DeformDataset.prepare_pytorch_input(
                 color_image, depth_image, intrinsics_dict,
+                opt.image_height, opt.image_width,
                 cropper=cropper,
                 max_boundary_dist=opt.max_boundary_dist,
                 compute_boundary_mask=True
@@ -207,25 +219,64 @@ def main() -> None:
             #  that can be further split into subroutines that isolate the depth projection
             point_image = nnrt.backproject_depth_ushort(depth_image, fx, fy, cx, cy, 1000.0)
 
+            # TODO: Weights & anchors should probably be computed for isosurface points instead of pixels (?)
+            # pixel_anchors = np.zeros(1, dtype=np.int32)
+            # pixel_weights = np.zeros(1, dtype=np.float32)
+            #
+            # nnrt.compute_pixel_anchors_geodesic(
+            #     deformation_graph.live_node_positions, deformation_graph.edges,
+            #     point_image, 1, 0.05, pixel_anchors, pixel_weights
+            # )
             pixel_anchors, pixel_weights = nnrt.compute_pixel_anchors_geodesic(
                 deformation_graph.live_node_positions, deformation_graph.edges,
-                depth_image, 4, 0.05
+                point_image, 1, 0.05
             )
 
+            pixel_anchors = cropper(pixel_anchors)
+            pixel_weights = cropper(pixel_weights)
+
+            fx, fy, cx, cy = image_proc.modify_intrinsics_due_to_cropping(
+                intrinsics_dict['fx'], intrinsics_dict['fy'], intrinsics_dict['cx'], intrinsics_dict['cy'],
+                opt.image_height, opt.image_width, original_h=cropper.h, original_w=cropper.w
+            )
+            adjusted_intrinsics_numpy = np.array([fx, fy, cx, cy], dtype=np.float32)
+
+            # TODO: not sure how this is used yet
+            num_nodes = np.array(deformation_graph.live_node_positions.shape[0], dtype=np.int64)
 
             source_cuda = torch.from_numpy(source).cuda().unsqueeze(0)
             target_cuda = torch.from_numpy(target).cuda().unsqueeze(0)
             target_boundary_mask_cuda = torch.from_numpy(target_boundary_mask).cuda().unsqueeze(0)
             graph_nodes_cuda = torch.from_numpy(deformation_graph.live_node_positions).cuda().unsqueeze(0)
             graph_edges_cuda = torch.from_numpy(deformation_graph.edges).cuda().unsqueeze(0)
+            # TODO: edge weights are for now all "1.0" since it's not clear how they are computed
+            #  (and the default option disables them anyway)
             graph_edges_weights_cuda = torch.from_numpy(deformation_graph.edge_weights).cuda().unsqueeze(0)
-            graph_clusters_cuda = torch.from_numpy(deformation_graph.clusters).cuda().unsqueeze(0)
+            graph_clusters_cuda = torch.from_numpy(deformation_graph.clusters.reshape(-1, 1)).cuda().unsqueeze(0)
             pixel_anchors_cuda = torch.from_numpy(pixel_anchors).cuda().unsqueeze(0)
             pixel_weights_cuda = torch.from_numpy(pixel_weights).cuda().unsqueeze(0)
-            intrinsics_cuda = torch.from_numpy(intrinsics_numpy).cuda().unsqueeze(0)
+            intrinsics_cuda = torch.from_numpy(adjusted_intrinsics_numpy).cuda().unsqueeze(0)
 
             num_nodes_cuda = torch.from_numpy(num_nodes).cuda().unsqueeze(0)
 
+
+
+            with torch.no_grad():
+                model_data = model(
+                    source_cuda, target_cuda,
+                    graph_nodes_cuda, graph_edges_cuda, graph_edges_weights_cuda, graph_clusters_cuda,
+                    pixel_anchors_cuda, pixel_weights_cuda,
+                    num_nodes_cuda, intrinsics_cuda,
+                    evaluate=True, split="test"
+                )
+
+                # Get some of the results
+            rotations_pred = model_data["node_rotations"].view(num_nodes, 3, 3).cpu().numpy()
+            translations_pred = model_data["node_translations"].view(num_nodes, 3).cpu().numpy()
+
+            # mask_pred = model_data["mask_pred"]
+            # assert mask_pred is not None, "Make sure use_mask=True in options.py"
+            # mask_pred = mask_pred.view(-1, opt.image_height, opt.image_width).cpu().numpy()
         else:  # __DEBUG
             break
 

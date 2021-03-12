@@ -281,6 +281,7 @@ endif()
 if(TARGET pybind11::module)
     set(PYBIND11_TARGET "pybind11::module")
 endif()
+list(APPEND NNRT_3RDPARTY_PUBLIC_TARGETS "${PYBIND11_TARGET}")
 
 # Pytorch
 

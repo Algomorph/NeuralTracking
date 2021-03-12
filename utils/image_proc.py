@@ -347,6 +347,7 @@ def backproject_depth(depth_image, fx, fy, cx, cy, normalizer=1000.0):
 
 def compute_boundary_mask(point_image: np.ndarray, max_distance: float) -> np.ndarray:
     """
+    Pont image expected shape: (3, h, w)
     Resulting mask filters out points where either:
         distance between pixel-wise left & right neighbors exceeds max_distance
         - or -
@@ -390,4 +391,5 @@ def compute_boundary_mask(point_image: np.ndarray, max_distance: float) -> np.nd
 
     boundary_mask = boundary_horizontal_mask | boundary_vertical_mask
 
+    # the slice with [None, ...] here reshapes the mask to shape ( 1, h, w )
     return boundary_mask[None, ...]

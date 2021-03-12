@@ -32,9 +32,13 @@ def Backward(x, flow):
     x = torch.cat([ x, backward_partial[str(flow.size())] ], 1)
 
     output = torch.nn.functional.grid_sample(input=x, grid=grid, mode='bilinear', padding_mode='zeros', align_corners=False)
-    
+
     mask = output[:, -1:, :, :]
-    mask[mask > 0.999] = 1.0; mask[mask < 1.0] = 0.0
+
+    # mask[mask > 0.999] = 1.0  # <-- Error occurs here! Something like: RuntimeError: invalid shape dimension -1096498240
+    mask = torch.where(mask > 0.999, torch.ones_like(mask), mask)
+    # mask[mask < 1.0] = 0.0 # <-- another error here
+    mask = torch.where(mask < 1.0, torch.zeros_like(mask), mask)
 
     return (output[:, :-1, :, :] * mask).contiguous()
 
@@ -140,6 +144,7 @@ class PWCNet(torch.nn.Module):
 
             def forward(self, x):
                 # we assume the color image is already in the range [0, 1]
+
                 assert torch.max(x[:, :3, :, :]) <= 1.0, "input image is not within the range [0, 1], but rather within [0, {}]".format(torch.max(x))
                 tensorOne = self.moduleOne(x)
                 tensorTwo = self.moduleTwo(tensorOne)
@@ -164,7 +169,7 @@ class PWCNet(torch.nn.Module):
                 previous = feature_sizes[lvl + 1]
                 current  = feature_sizes[lvl]
 
-                if lvl < 6: 
+                if lvl < 6:
                     self.moduleUpflow = torch.nn.ConvTranspose2d(in_channels=2, out_channels=2, kernel_size=4, stride=2, padding=1)
                     self.moduleUpfeat = torch.nn.ConvTranspose2d(in_channels=previous + dd[4], out_channels=2, kernel_size=4, stride=2, padding=1)
                     self.dblBackward = scales[lvl + 1]
@@ -212,12 +217,13 @@ class PWCNet(torch.nn.Module):
                 flow = None
                 features = None
 
+
                 if object_prev is None:
                     flow = None
                     features = None
 
                     cost_volume = torch.nn.functional.leaky_relu(input=correlation.FunctionCorrelation(first=first, second=second), negative_slope=0.1, inplace=False)
-                    
+
                     features = cost_volume
 
                 else:
@@ -226,7 +232,6 @@ class PWCNet(torch.nn.Module):
 
                     assert flow is not None
                     assert features is not None
-
                     second_warped = Backward(x=second, flow=flow * self.dblBackward)
                     cost_volume = torch.nn.functional.leaky_relu(input=correlation.FunctionCorrelation(first=first, second=second_warped), negative_slope=0.1, inplace=False)
 
@@ -239,7 +244,7 @@ class PWCNet(torch.nn.Module):
                 features = torch.cat([ self.moduleThr(features), features ], 1)
                 features = torch.cat([ self.moduleFou(features), features ], 1)
                 features = torch.cat([ self.moduleFiv(features), features ], 1)
-                
+
                 flow = self.moduleSix(features)
 
                 assert flow is not None
@@ -261,32 +266,32 @@ class PWCNet(torch.nn.Module):
                     # torch.nn.BatchNorm2d(128),
                     torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
                     #torch.nn.Dropout2d(p=0.2, inplace=False),
-                    
+
                     torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=2, dilation=2),
                     # torch.nn.BatchNorm2d(128),
                     torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
                     #torch.nn.Dropout2d(p=0.2, inplace=False),
-                    
+
                     torch.nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=4, dilation=4),
                     # torch.nn.BatchNorm2d(128),
                     torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
                     #torch.nn.Dropout2d(p=0.2, inplace=False),
-                    
+
                     torch.nn.Conv2d(in_channels=128, out_channels=96, kernel_size=3, stride=1, padding=8, dilation=8),
                     # torch.nn.BatchNorm2d(96),
                     torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
                     #torch.nn.Dropout2d(p=0.2, inplace=False),
-                    
+
                     torch.nn.Conv2d(in_channels=96, out_channels=64, kernel_size=3, stride=1, padding=16, dilation=16),
                     # torch.nn.BatchNorm2d(64),
                     torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
                     #torch.nn.Dropout2d(p=0.2, inplace=False),
-                    
+
                     torch.nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=1, dilation=1),
                     # torch.nn.BatchNorm2d(32),
                     torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
                     #torch.nn.Dropout2d(p=0.2, inplace=False),
-                    
+
                     torch.nn.Conv2d(in_channels=32, out_channels=2, kernel_size=3, stride=1, padding=1, dilation=1) # predict flow
                 )
 
@@ -307,7 +312,7 @@ class PWCNet(torch.nn.Module):
     def forward(self, first, second):
         first = first[:, :3, :, :]
         second = second[:, :3, :, :]
-            
+
         pyramid_first  = self.moduleExtractor(first)
         pyramid_second = self.moduleExtractor(second)
 
@@ -316,10 +321,10 @@ class PWCNet(torch.nn.Module):
 
         object_estimate = self.moduleFiv(pyramid_first[-2], pyramid_second[-2], object_estimate)
         flow5 = object_estimate['flow']
-        
+
         object_estimate = self.moduleFou(pyramid_first[-3], pyramid_second[-3], object_estimate)
         flow4 = object_estimate['flow']
-        
+
         object_estimate = self.moduleThr(pyramid_first[-4], pyramid_second[-4], object_estimate)
         flow3 = object_estimate['flow']
 

@@ -137,6 +137,7 @@ class DeformNet(torch.nn.Module):
         ########################################################################
         # Compute dense flow from source to target.
         ########################################################################
+
         flow2, flow3, flow4, flow5, flow6, features2 = self.flow_net.forward(x1[:, :3, :, :], x2[:, :3, :, :])
 
         assert torch.isfinite(flow2).all()

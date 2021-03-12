@@ -1,0 +1,10 @@
+source_cuda.shape = {Size: 4} torch.Size([1, 6, 448, 640])
+target_cuda.shape = {Size: 4} torch.Size([1, 6, 448, 640])
+target_boundary_mask.shape = {tuple: 3} (1, 448, 640)
+graph_nodes_cuda.shape = {Size: 3} torch.Size([1, 1152, 3])
+graph_edges_cuda.shape = {Size: 3} torch.Size([1, 1152, 4])
+graph_edges_weights_cuda.shape = {Size: 3} torch.Size([1, 1152, 4])
+graph_clusters_cuda.shape = {Size: 3} torch.Size([1, 1152, 1])
+pixel_anchors_cuda.shape = {Size: 4} torch.Size([1, 448, 640, 4])
+intrinsics_cuda.shape = {Size: 2} torch.Size([1, 4])
+num_nodes_cuda.shape = {Size: 1} 1
